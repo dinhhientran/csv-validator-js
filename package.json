@@ -1,0 +1,28 @@
+{
+  "name": "csvvalidatorjs",
+  "version": "1.0.0",
+  "description": "A robust JavaScript library for validating CSV files with custom rules and error messages.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/csvvalidatorjs.git"
+  },
+  "keywords": [
+    "csv",
+    "validation",
+    "validator",
+    "javascript",
+    "csv files"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^26.6.3"
+  },
+  "dependencies": {
+    "moment": "^2.29.1"
+  }
+}
