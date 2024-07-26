@@ -29,64 +29,64 @@ import CSVValidator from 'csvvalidatorjs';
 
 // Define column rules
 const columnDefinitions = {
-    'InvoiceNumber': { 
-        dataType: 'integer', 
-        required: true, 
-        validateDuplicates: true, 
-        errors: { 
-            required: "Invoice Number is required." 
-        } 
+    'InvoiceNumber': {
+        dataType: 'integer',
+        required: true,
+        validateDuplicates: true,
+        errors: {
+            required: "Invoice Number is required."
+        }
     },
-    'InvoiceAmount': { 
-        dataType: 'currency', 
-        format: 'USD', 
-        required: true, 
-        errors: { 
-            required: "Invoice Amount is required." 
-        } 
+    'InvoiceAmount': {
+        dataType: 'currency',
+        format: 'USD',
+        required: true,
+        errors: {
+            required: "Invoice Amount is required."
+        }
     },
-    'InvoiceDate': { 
-        dataType: 'date', 
-        format: 'MM/DD/YYYY', 
-        required: true, 
-        errors: { 
-            required: "Invoice Date is required." 
-        } 
+    'InvoiceDate': {
+        dataType: 'date',
+        format: 'MM/DD/YYYY',
+        required: true,
+        errors: {
+            required: "Invoice Date is required."
+        }
     },
-    'DueDate': { 
-        dataType: 'date', 
-        format: 'MM/DD/YYYY', 
-        required: false 
+    'DueDate': {
+        dataType: 'date',
+        format: 'MM/DD/YYYY',
+        required: false // Optional
     },
-    'CustomerEmail': { 
-        dataType: 'email', 
-        required: true, 
-        errors: { 
-            required: "Customer Email is required." 
-        } 
+    'CustomerEmail': {
+        dataType: 'email',
+        required: true,
+        errors: {
+            required: "Customer Email is required."
+        }
     },
-    'CustomerWebsite': { 
-        dataType: 'url', 
-        required: false 
+    'CustomerWebsite': {
+        dataType: 'url',
+        required: false // Optional
     },
-    'CustomerPhone': { 
-        dataType: 'phoneNumber', 
-        format: 'XXX-XXX-XXXX', 
-        required: false 
+    'CustomerPhone': {
+        dataType: 'phoneNumber',
+        format: 'XXX-XXX-XXXX',
+        required: false // Optional
     },
-    'DiscountRate': { 
-        dataType: 'percentage', 
-        required: false, 
+    'DiscountRate': {
+        dataType: 'percentage',
+        required: false, // Optional
         customValidator: function(value) {
             return /^\d+(\.\d{1,3})?\s?%$/.test(value);
-        } 
+        }
     },
-    'TotalAmount': { 
-        dataType: 'number', 
-        required: true, 
-        errors: { 
-            required: "Total Amount is required.", 
-            invalid: "Total Amount must be a valid number." 
+    'TotalAmount': {
+        dataType: 'number',
+        required: true,
+        errors: {
+            required: "Total Amount is required.",
+            invalid: "Total Amount must be a valid number."
         }
     },
     'TaxAmount': {
@@ -109,7 +109,7 @@ const columnDefinitions = {
     }
 };
 
-// Define global custom validators
+// Define global custom validators (Optional)
 const globalCustomValidators = {
     required: function(value, header) {
         return value !== undefined && value !== null && value !== '';
@@ -120,7 +120,7 @@ const globalCustomValidators = {
     }
 };
 
-// Default invalid messages
+// Default invalid messages (Optional)
 const defaultInvalidMessages = {
     integer: 'Invalid integer value',
     decimal: 'Invalid decimal value',
@@ -136,7 +136,7 @@ const defaultInvalidMessages = {
     number: 'Invalid number value'
 };
 
-// Messages for different languages
+// Messages for different languages (Optional)
 const messages = {
     es: {
         required: 'Falta el valor requerido en la fila {row}, columna {column} ({header}).',
@@ -151,25 +151,25 @@ const messages = {
         duplicate: 'Valeur en double "{value}" trouvée dans les lignes : {rows} pour la colonne : {column}.',
         emptyRow: 'La ligne {row} est vide.',
         headerLength: 'Désaccord sur la longueur de l'en-tête. {expected} en-têtes attendus mais {actual} obtenus.',
-        valid: 'Le fichier CSV est valide.',
-        ...defaultInvalidMessages
-    },
-    vi: {
-        required: 'Cần nhập giá trị ở hàng {row}, cột {column} ({header}).',
+valid: 'Le fichier CSV est valide.',
+...defaultInvalidMessages
+},
+vi: {
+    required: 'Cần nhập giá trị ở hàng {row}, cột {column} ({header}).',
         duplicate: 'Giá trị "{value}" bị lặp lại ở các hàng: {rows} cho cột: {column}.',
         emptyRow: 'Hàng {row} bị trống.',
         headerLength: 'Số lượng cột không đúng. Cần phải có {expected} cột, nhưng thấy {actual}.',
         valid: 'Tệp CSV hợp lệ.',
-        ...defaultInvalidMessages
-    },
-    zh: {
-        required: '第 {row} 行，第 {column} 列 ({header}) 缺少必填值。',
+...defaultInvalidMessages
+},
+zh: {
+    required: '第 {row} 行，第 {column} 列 ({header}) 缺少必填值。',
         duplicate: '在第 {rows} 行找到的重复值 "{value}"，列: {column}。',
         emptyRow: '第 {row} 行为空。',
         headerLength: '标题长度不匹配。预计 {expected} 个标题，但得到 {actual} 个。',
         valid: 'CSV 文件有效。',
-        ...defaultInvalidMessages
-    }
+...defaultInvalidMessages
+}
 };
 
 // Initialize the validator
@@ -202,21 +202,6 @@ const columnDefinitions = {
     // same as above
 };
 
-// Define global custom validators
-const globalCustomValidators = {
-    // same as above
-};
-
-// Default invalid messages
-const defaultInvalidMessages = {
-    // same as above
-};
-
-// Messages for different languages
-const messages = {
-    // same as above
-};
-
 // Initialize the validator
 const validator = new CSVValidator(columnDefinitions, globalCustomValidators, defaultInvalidMessages, 'vi', messages);
 
@@ -238,6 +223,38 @@ document.getElementById('csvFileInput').addEventListener('change', function(even
 
 ```html
 <input type="file" id="csvFileInput" accept=".csv">
+```
+
+### Result Inspection
+
+To inspect the validation results, you can use the callback function provided in the `parseAndValidateCSV` method. Here is an example of how to log and handle the validation results:
+
+```javascript
+validator.parseAndValidateCSV(csvContent, function(isValid, result) {
+    if (isValid) {
+        console.log('CSV file is valid.');
+    } else {
+        console.error('CSV file is invalid:', result);
+        // Handle the validation errors
+        result.forEach(error => {
+            console.error(error);
+        });
+    }
+});
+```
+
+In the example above, the `result` parameter will contain an array of error messages if the CSV file is invalid. You can iterate over this array to inspect and handle each validation error.
+
+result:
+
+```
+[
+  "Row 2: Invoice Number is required.",
+  "Row 2: Invalid value at row 2, column 2 (InvoiceAmount). Expected type currency.",
+  "Row 2: Invalid email address.",
+  "Row 2: Invalid URL.",
+  "Row 2: Invalid value at row 2, column 11 (TransactionDate). Expected type datetime."
+]
 ```
 
 ## License
