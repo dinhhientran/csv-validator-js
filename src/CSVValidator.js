@@ -1,23 +1,95 @@
 import moment from 'moment';
 
 class CSVValidator {
-    constructor(columnDefinitions, validateDuplicates = false, globalCustomValidators = {}) {
+    constructor(columnDefinitions, globalCustomValidators = {}, defaultInvalidMessages = {}, language = 'en', messages = {}) {
         this.columnDefinitions = columnDefinitions;
         this.expectedHeaderLength = Object.keys(columnDefinitions).length;
-        this.validateDuplicates = validateDuplicates;
         this.globalCustomValidators = globalCustomValidators;
+        this.defaultInvalidMessages = {
+            integer: 'Invalid integer value',
+            decimal: 'Invalid decimal value',
+            boolean: 'Invalid boolean value',
+            date: 'Invalid date value',
+            datetime: 'Invalid datetime value',
+            string: 'Invalid string value',
+            percentage: 'Invalid percentage value',
+            email: 'Invalid email address',
+            url: 'Invalid URL',
+            phoneNumber: 'Invalid phone number',
+            currency: 'Invalid currency value',
+            number: 'Invalid number value',
+            ...defaultInvalidMessages
+        };
+        this.language = language;
+        this.messages = {
+            en: {
+                required: 'Missing required value at row {row}, column {column} ({header}).',
+                duplicate: 'Duplicate value "{value}" found in rows: {rows} for column: {column}.',
+                emptyRow: 'Row {row} is empty.',
+                headerLength: 'Header length mismatch. Expected {expected} headers but got {actual}.',
+                valid: 'CSV file is valid.',
+                ...this.defaultInvalidMessages
+            },
+            vi: {
+                required: 'Cần nhập giá trị ở hàng {row}, cột {column} ({header}).',
+                duplicate: 'Giá trị "{value}" bị lặp lại ở các hàng: {rows} cho cột: {column}.',
+                emptyRow: 'Hàng {row} bị trống.',
+                headerLength: 'Số lượng cột không đúng. Cần phải có {expected} cột, nhưng thấy {actual}.',
+                valid: 'Tệp CSV hợp lệ.',
+                ...this.defaultInvalidMessages
+            },
+            zh: {
+                required: '第 {row} 行，第 {column} 列 ({header}) 缺少必填值。',
+                duplicate: '在第 {rows} 行找到的重复值 "{value}"，列: {column}。',
+                emptyRow: '第 {row} 行为空。',
+                headerLength: '标题长度不匹配。预计 {expected} 个标题，但得到 {actual} 个。',
+                valid: 'CSV 文件有效。',
+                ...this.defaultInvalidMessages
+            },
+            es: {
+                required: 'Falta el valor requerido en la fila {row}, columna {column} ({header}).',
+                duplicate: 'Valor duplicado "{value}" encontrado en las filas: {rows} para la columna: {column}.',
+                emptyRow: 'La fila {row} está vacía.',
+                headerLength: 'Desajuste de longitud de encabezado. Se esperaban {expected} encabezados pero se obtuvieron {actual}.',
+                valid: 'El archivo CSV es válido.',
+                ...this.defaultInvalidMessages
+            },
+            fr: {
+                required: 'Valeur requise manquante à la ligne {row}, colonne {column} ({header}).',
+                duplicate: 'Valeur en double "{value}" trouvée dans les lignes : {rows} pour la colonne : {column}.',
+                emptyRow: 'La ligne {row} est vide.',
+                headerLength: 'Désaccord sur la longueur de l\'en-tête. {expected} en-têtes attendus mais {actual} obtenus.',
+                valid: 'Le fichier CSV est valide.',
+                ...this.defaultInvalidMessages
+            }
+        };
         this.seenValues = {};
     }
 
+    getMessage(key, replacements) {
+        replacements = replacements || {};
+        let message = this.messages[this.language][key] || this.messages['en'][key] || key;
+        for (let placeholder in replacements) {
+            if (replacements.hasOwnProperty(placeholder)) {
+                message = message.replace('{' + placeholder + '}', replacements[placeholder]);
+            }
+        }
+        return message;
+    }
+
     validateCSV(data, callback) {
-        const { meta, data: rows, errors } = data;
+        let meta = data.meta,
+            rows = data.data,
+            errors = data.errors;
 
         if (errors.length > 0) {
-            callback(false, errors.map(e => `Row ${e.row + 1}: ${e.message}`));
+            callback(false, errors.map(function (e) {
+                return 'Row ' + (e.row + 1) + ': ' + e.message;
+            }));
             return;
         }
 
-        const headerValidationResult = this.validateHeaderLength(meta.fields);
+        let headerValidationResult = this.validateHeaderLength(meta.fields);
         if (!headerValidationResult.isValid) {
             callback(false, headerValidationResult.errors);
             return;
@@ -26,30 +98,32 @@ class CSVValidator {
         let rowErrors = [];
         for (let i = 0; i < rows.length; i++) {
             if (this.isEmptyRow(rows[i])) {
-                rowErrors.push(`Row ${i + 1} is empty.`);
+                rowErrors.push(this.getMessage('emptyRow', { row: i + 1 }));
                 continue;
             }
 
-            const rowValidationResult = this.validateRow(rows[i], i + 1, meta.fields);
+            let rowValidationResult = this.validateRow(rows[i], i + 1, meta.fields);
             if (!rowValidationResult.isValid) {
                 rowErrors = rowErrors.concat(rowValidationResult.errors);
             }
         }
 
-        if (this.validateDuplicates) {
-            // Check for duplicates in the first column
-            Object.keys(this.seenValues).forEach(value => {
-                if (this.seenValues[value].length > 1) {
-                    const duplicateRows = this.seenValues[value].join(', ');
-                    rowErrors.push(`Duplicate value "${value}" found in rows: ${duplicateRows}.`);
+        // Check for duplicates across all columns marked with validateDuplicates
+        for (let column in this.seenValues) {
+            if (this.seenValues.hasOwnProperty(column)) {
+                for (let value in this.seenValues[column]) {
+                    if (this.seenValues[column].hasOwnProperty(value) && this.seenValues[column][value].length > 1) {
+                        let duplicateRows = this.seenValues[column][value].join(', ');
+                        rowErrors.push(this.getMessage('duplicate', { value: value, rows: duplicateRows, column: column }));
+                    }
                 }
-            });
+            }
         }
 
         if (rowErrors.length > 0) {
             callback(false, rowErrors);
         } else {
-            callback(true, 'CSV file is valid.');
+            callback(true, this.getMessage('valid'));
         }
     }
 
@@ -59,10 +133,10 @@ class CSVValidator {
 
         if (headers.length !== this.expectedHeaderLength) {
             isValid = false;
-            errors.push(`Header length mismatch. Expected ${this.expectedHeaderLength} headers but got ${headers.length}.`);
+            errors.push(this.getMessage('headerLength', { expected: this.expectedHeaderLength, actual: headers.length }));
         }
 
-        return { isValid, errors };
+        return { isValid: isValid, errors: errors };
     }
 
     validateRow(row, rowIndex, headers) {
@@ -70,56 +144,63 @@ class CSVValidator {
         let errors = [];
 
         for (let i = 0; i < headers.length; i++) {
-            const header = headers[i];
-            const value = row[header];
-            const definition = this.columnDefinitions[header];
-            const type = definition?.dataType;
-            const dateFormat = definition?.format;
-            const required = definition?.required;
-            const customErrors = definition?.errors || {};
-            const customRequiredValidator = definition?.customRequiredValidator || this.globalCustomValidators.required;
-            const customValidator = definition?.customValidator;
+            let header = headers[i];
+            let value = row[header];
+            let definition = this.columnDefinitions[header];
+            let type = definition && definition.dataType;
+            let dateFormat = definition && definition.format;
+            let decimalPlaces = definition && definition.decimalPlaces;
+            let required = definition && definition.required;
+            let validateDuplicates = definition && definition.validateDuplicates;
+            let customErrors = (definition && definition.errors) || {};
+            let customRequiredValidator = (definition && definition.customRequiredValidator) || this.globalCustomValidators.required;
+            let customValidator = definition && definition.customValidator;
 
-            // Track duplicates in the first column if validation is enabled
-            if (i === 0 && this.validateDuplicates) {
-                if (!this.seenValues[value]) {
-                    this.seenValues[value] = [];
+            // Track duplicates if validation is enabled for this column
+            if (validateDuplicates) {
+                if (!this.seenValues[header]) {
+                    this.seenValues[header] = {};
                 }
-                this.seenValues[value].push(rowIndex);
+                if (!this.seenValues[header][value]) {
+                    this.seenValues[header][value] = [];
+                }
+                this.seenValues[header][value].push(rowIndex);
             }
 
             // Check for required fields using custom validator if provided
             if (required && (customRequiredValidator ? !customRequiredValidator(value, header) : (value === undefined || value === null || value === ''))) {
                 isValid = false;
-                errors.push(customErrors.required || `Missing required value at row ${rowIndex}, column ${i + 1} (${header}).`);
+                errors.push(customErrors.required || this.getMessage('required', { row: rowIndex, column: i + 1, header: header }));
                 continue; // No need to check further validation if required field is missing
             }
 
             // Use custom validator for this column if provided
             if (customValidator && !customValidator(value)) {
                 isValid = false;
-                errors.push(customErrors.invalid || `Invalid value at row ${rowIndex}, column ${i + 1} (${header}).`);
-            } else if (!customValidator && !this.validateValue(value, type, dateFormat)) {
+                errors.push(customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header: header }));
+            } else if (!customValidator && !this.validateValue(value, type, dateFormat, decimalPlaces)) {
                 isValid = false;
-                errors.push(customErrors.invalid || `Invalid value at row ${rowIndex}, column ${i + 1} (${header}). Expected type ${type}${type === 'date' || type === 'datetime' ? ` (format: ${dateFormat})` : ''}.`);
+                errors.push(customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header: header }));
             }
         }
 
-        return { isValid, errors };
+        return { isValid: isValid, errors: errors };
     }
 
-    validateValue(value, type, dateFormat) {
+    validateValue(value, type, dateFormat, decimalPlaces) {
         if (this.globalCustomValidators[type]) {
-            return this.globalCustomValidators[type](value, dateFormat);
+            return this.globalCustomValidators[type](value, dateFormat, decimalPlaces);
         }
 
         if (type === 'integer') {
             return this.isInteger(value);
         } else if (type === 'decimal') {
-            return this.isDouble(value);
+            return this.isDecimal(value, decimalPlaces);
         } else if (type === 'boolean') {
             return this.isBoolean(value);
-        } else if (type === 'date' || type === 'datetime') {
+        } else if (type === 'date') {
+            return this.isDate(value, dateFormat);
+        } else if (type === 'datetime') {
             return this.isDateTime(value, dateFormat);
         } else if (type === 'percentage') {
             return this.isPercentage(value);
@@ -131,6 +212,8 @@ class CSVValidator {
             return this.isPhoneNumber(value, dateFormat);
         } else if (type === 'currency') {
             return this.isCurrency(value, dateFormat);
+        } else if (type === 'number') {
+            return this.isNumber(value);
         } else if (type === 'string') {
             return true; // No validation needed for string type
         }
@@ -141,32 +224,32 @@ class CSVValidator {
         return value !== undefined && value !== null && value !== '' && !isNaN(value) && Number.isInteger(parseFloat(value));
     }
 
-    isDouble(value) {
-        return value !== undefined && value !== null && value !== '' && !isNaN(value) && !isNaN(parseFloat(value));
+    isDecimal(value, decimalPlaces) {
+        if (value === undefined || value === null || value === '' || isNaN(value)) {
+            return false;
+        }
+        const regex = new RegExp(`^\\d+(\\.\\d{1,${decimalPlaces}})?$`);
+        return regex.test(value);
     }
 
     isBoolean(value) {
         return value === 'true' || value === 'false';
     }
 
-    isDateTime(value, dateFormat) {
+    isDate(value, dateFormat) {
         if (!dateFormat) return false;
         const date = moment(value, dateFormat, true);
-        if (date.isValid()) {
-            return true;
-        }
-        // Try parsing with default formats if provided format fails
-        const alternativeFormats = ['M/D/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD HH:mm:ss'];
-        for (let format of alternativeFormats) {
-            if (moment(value, format, true).isValid()) {
-                return true;
-            }
-        }
-        return false;
+        return date.isValid();
+    }
+
+    isDateTime(value, dateFormat) {
+        if (!dateFormat) return false;
+        const dateTime = moment(value, dateFormat, true);
+        return dateTime.isValid();
     }
 
     isPercentage(value) {
-        const regex = /^\d+(\.\d{1,2})?\s?%$/;
+        const regex = /^\d+(\.\d{1,3})?\s?%$/;
         return regex.test(value);
     }
 
@@ -190,8 +273,14 @@ class CSVValidator {
         return regex.test(value);
     }
 
+    isNumber(value) {
+        return value !== undefined && value !== null && value !== '' && !isNaN(value);
+    }
+
     isEmptyRow(row) {
-        return Object.values(row).every(value => value === null || value === '');
+        return Object.values(row).every(function (value) {
+            return value === null || value === '';
+        });
     }
 }
 
