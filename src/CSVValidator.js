@@ -1,4 +1,5 @@
 import moment from 'moment';
+import Papa from 'papaparse';
 
 class CSVValidator {
     constructor(columnDefinitions, globalCustomValidators = {}, defaultInvalidMessages = {}, language = 'en', messages = {}) {
@@ -75,6 +76,21 @@ class CSVValidator {
             }
         }
         return message;
+    }
+
+    parseAndValidateCSV(content, callback, isFile = false) {
+        const parseConfig = {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                this.validateCSV(results, callback);
+            }
+        };
+        if (isFile) {
+            Papa.parse(content, parseConfig);
+        } else {
+            Papa.parse(Papa.parse(content), parseConfig);
+        }
     }
 
     validateCSV(data, callback) {
