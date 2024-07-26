@@ -1,7 +1,7 @@
 
-# CSVValidatorJS
+# CSV Validator JS
 
-CSVValidatorJS is a robust JavaScript library for validating CSV files with custom rules and error messages. It supports various data types, including integers, decimals, booleans, dates, datetimes, percentages, emails, URLs, phone numbers, currencies, and general numbers. The library also supports multi-language error messages.
+CSV Validator JS is a robust JavaScript library for validating CSV files with custom rules and error messages. It supports various data types, including integers, decimals, booleans, dates, datetimes, percentages, emails, URLs, phone numbers, currencies, and general numbers. The library also supports multi-language error messages.
 
 ## Features
 
@@ -15,7 +15,7 @@ CSVValidatorJS is a robust JavaScript library for validating CSV files with cust
 ## Installation
 
 ```bash
-npm install csvvalidatorjs
+npm install csv-validator-js
 ```
 
 ## Usage
