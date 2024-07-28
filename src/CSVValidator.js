@@ -1,3 +1,17 @@
+/*!
+ * CSVValidator.js
+ * A robust JavaScript library for validating CSV files with custom rules and error messages.
+ *
+ * @version 1.0.12
+ * @author Hien Tran
+ * @license MIT
+ *
+ * This file is part of the CSV Validator library.
+ *
+ * For detailed documentation and usage, visit the repository:
+ * https://github.com/dinhhientran/csv-validator-js
+ */
+
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
