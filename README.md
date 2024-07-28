@@ -25,7 +25,7 @@ npm install csv-validator-js
 #### Using CSV Content as a String
 
 ```javascript
-import CSVValidator from 'csvvalidatorjs';
+import CSVValidator from 'csv-validator-js';
 
 // Define column rules
 const columnDefinitions = {
@@ -195,7 +195,7 @@ validator.parseAndValidateCSV(csvContent, function(isValid, result) {
 #### Using CSV Content as a File
 
 ```javascript
-import CSVValidator from 'csvvalidatorjs';
+import CSVValidator from 'csv-validator-js';
 
 // Define column rules
 const columnDefinitions = {

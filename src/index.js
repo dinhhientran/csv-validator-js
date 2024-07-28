@@ -1,3 +1,2 @@
-import CSVValidator from './CSVValidator';
-
-export default CSVValidator;
+import CSVValidator from './CSVValidator.js';
+module.exports = CSVValidator;
