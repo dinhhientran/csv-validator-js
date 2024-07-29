@@ -2,7 +2,7 @@
  * CSVValidator.js
  * A robust JavaScript library for validating CSV files with custom rules and error messages.
  *
- * @version 1.0.0
+ * @version 1.0.20
  * author: Hien Tran
  * license: MIT
  *
