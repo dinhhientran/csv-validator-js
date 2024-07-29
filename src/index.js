@@ -1,10 +1,10 @@
 /*!
- * index.js
+ * CSVValidator.js
  * A robust JavaScript library for validating CSV files with custom rules and error messages.
  *
- * @version 1.0.12
- * @author Hien Tran
- * @license MIT
+ * @version 1.0.0
+ * author: Hien Tran
+ * license: MIT
  *
  * This file is part of the CSV Validator library.
  *
@@ -16,23 +16,33 @@ import moment from 'moment';
 import Papa from 'papaparse';
 
 class CSVValidator {
-    constructor(columnDefinitions, globalCustomValidators = {}, defaultInvalidMessages = {}, language = 'en', messages = {}) {
+    constructor({
+                    columnDefinitions,
+                    globalCustomValidators = {},
+                    defaultInvalidMessages = {},
+                    language = 'en',
+                    messages = {},
+                    skipEmptyLines = true,
+                    validateHeaderNames = true,
+                    customEmptyValueCheck = null, // New parameter
+                    errorMessageRowIndexStart = 2 // New parameter
+                }) {
         this.columnDefinitions = columnDefinitions;
         this.expectedHeaderLength = Object.keys(columnDefinitions).length;
         this.globalCustomValidators = globalCustomValidators;
         this.defaultInvalidMessages = {
-            integer: 'Invalid integer value',
-            decimal: 'Invalid decimal value',
-            boolean: 'Invalid boolean value',
-            date: 'Invalid date value',
-            datetime: 'Invalid datetime value',
-            string: 'Invalid string value',
-            percentage: 'Invalid percentage value',
-            email: 'Invalid email address',
-            url: 'Invalid URL',
-            phoneNumber: 'Invalid phone number',
-            currency: 'Invalid currency value',
-            number: 'Invalid number value',
+            integer: '{header} is not a valid integer value',
+            decimal: '{header} is not a valid decimal value',
+            boolean: '{header} is not a valid boolean value',
+            date: '{header} is not a valid date value (expected formats: {format})',
+            datetime: '{header} is not a valid datetime value (expected formats: {format})',
+            string: '{header} is not a valid string value',
+            percentage: '{header} is not a valid percentage value',
+            email: '{header} is not a valid email address',
+            url: '{header} is not a valid URL',
+            phoneNumber: '{header} is not a valid phone number',
+            currency: '{header} is not a valid currency value',
+            number: '{header} is not a valid number value',
             ...defaultInvalidMessages
         };
         this.language = language;
@@ -43,6 +53,7 @@ class CSVValidator {
                 emptyRow: 'Row {row} is empty.',
                 headerLength: 'Header length mismatch. Expected {expected} headers but got {actual}.',
                 valid: 'CSV file is valid.',
+                invalidHeader: 'Invalid header name {header} at column {column}.',
                 ...this.defaultInvalidMessages
             },
             vi: {
@@ -51,6 +62,7 @@ class CSVValidator {
                 emptyRow: 'Hàng {row} bị trống.',
                 headerLength: 'Số lượng cột không đúng. Cần phải có {expected} cột, nhưng thấy {actual}.',
                 valid: 'Tệp CSV hợp lệ.',
+                invalidHeader: 'Tên tiêu đề không hợp lệ {header} ở cột {column}.',
                 ...this.defaultInvalidMessages
             },
             zh: {
@@ -59,6 +71,7 @@ class CSVValidator {
                 emptyRow: '第 {row} 行为空。',
                 headerLength: '标题长度不匹配。预计 {expected} 个标题，但得到 {actual} 个。',
                 valid: 'CSV 文件有效。',
+                invalidHeader: '列 {column} 的标题名称 {header} 无效。',
                 ...this.defaultInvalidMessages
             },
             es: {
@@ -67,6 +80,7 @@ class CSVValidator {
                 emptyRow: 'La fila {row} está vacía.',
                 headerLength: 'Desajuste de longitud de encabezado. Se esperaban {expected} encabezados pero se obtuvieron {actual}.',
                 valid: 'El archivo CSV es válido.',
+                invalidHeader: 'Nombre de encabezado inválido {header} en la columna {column}.',
                 ...this.defaultInvalidMessages
             },
             fr: {
@@ -75,9 +89,14 @@ class CSVValidator {
                 emptyRow: 'La ligne {row} est vide.',
                 headerLength: 'Désaccord sur la longueur de l\'en-tête. {expected} en-têtes attendus mais {actual} obtenus.',
                 valid: 'Le fichier CSV est valide.',
+                invalidHeader: 'Nom d\'en-tête invalide {header} à la colonne {column}.',
                 ...this.defaultInvalidMessages
             }
         };
+        this.skipEmptyLines = skipEmptyLines;
+        this.validateHeaderNames = validateHeaderNames;
+        this.customEmptyValueCheck = customEmptyValueCheck; // Set the custom blank value check function
+        this.errorMessageRowIndexStart = errorMessageRowIndexStart; // Set the starting index for row numbers in error messages
         this.seenValues = {};
     }
 
@@ -92,48 +111,45 @@ class CSVValidator {
         return message;
     }
 
-    parseAndValidateCSV(content, callback) {
-        const lines = content.split('\n');
-        const trimmedLines = lines.map(line => line.trim());
+    parseAndValidateCSVFile(file, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            this.parseAndValidateCSVString(content, callback);
+        };
+        reader.readAsText(file);
+    }
+
+    parseAndValidateCSVString(content, callback) {
         const parseConfig = {
             header: true,
-            skipEmptyLines: true,
+            skipEmptyLines: this.skipEmptyLines,
+            worker: true,
             complete: (results) => {
-                const manualEmptyRows = trimmedLines
-                    .map((line, index) => ({ line, index }))
-                    .filter(({ line }) => line === '')
-                    .map(({ index }) => index + 1);
-                this.validateCSV(results, callback, manualEmptyRows);
+                this.validateCSV(results, callback);
             }
         };
-
         Papa.parse(content, parseConfig);
     }
 
-    validateCSV(data, callback, manualEmptyRows = []) {
+    validateCSV(data, callback) {
         let meta = data.meta,
-            rows = data.data,
-            errors = data.errors;
-
-        if (errors.length > 0) {
-            callback(false, errors.map((e) => `Row ${e.row + 1}: ${e.message}`));
-            return;
-        }
+            rows = data.data;
 
         const headerValidationResult = this.validateHeaderLength(meta.fields);
         if (!headerValidationResult.isValid) {
-            callback(false, headerValidationResult.errors.map((msg) => `Row 1: ${msg}`)); // Assuming header errors belong to row 1
+            callback(false, headerValidationResult.errors.map((msg) => `Row ${this.errorMessageRowIndexStart - 1}: ${msg}`)); // Assuming header errors belong to the row before the data starts
             return;
         }
 
         let rowErrors = [];
         for (let i = 0; i < rows.length; i++) {
-            if (manualEmptyRows.includes(i + 1) || this.isEmptyRow(rows[i])) {
-                rowErrors.push(this.getMessage('emptyRow', { row: i + 1 }));
+            if (this.isEmptyRow(rows[i])) {
+                rowErrors.push(this.getMessage('emptyRow', { row: i + this.errorMessageRowIndexStart }));
                 continue;
             }
 
-            const rowValidationResult = this.validateRow(rows[i], i + 1, meta.fields);
+            const rowValidationResult = this.validateRow(rows[i], i + this.errorMessageRowIndexStart, meta.fields);
             if (!rowValidationResult.isValid) {
                 rowErrors = rowErrors.concat(rowValidationResult.errors);
             }
@@ -144,8 +160,8 @@ class CSVValidator {
             if (this.seenValues.hasOwnProperty(column)) {
                 for (let value in this.seenValues[column]) {
                     if (this.seenValues[column].hasOwnProperty(value) && this.seenValues[column][value].length > 1) {
-                        let duplicateRows = this.seenValues[column][value].map(row => row + 1).join(', ');
-                        rowErrors.push(`Row ${duplicateRows}: Duplicate value "${value}" found in rows: ${duplicateRows} for column: ${column}.`);
+                        let duplicateRows = this.seenValues[column][value].map(row => row).join(', ');
+                        rowErrors.push(this.getMessage('duplicate', { value: value, rows: duplicateRows, column: column }));
                     }
                 }
             }
@@ -167,21 +183,26 @@ class CSVValidator {
             errors.push(this.getMessage('headerLength', { expected: this.expectedHeaderLength, actual: headers.length }));
         }
 
+        if (this.validateHeaderNames) {
+            headers.forEach((header, index) => {
+                if (!this.columnDefinitions[header]) {
+                    isValid = false;
+                    errors.push(this.getMessage('invalidHeader', { header, column: index + 1 }));
+                }
+            });
+        }
+
         return { isValid, errors };
     }
 
     validateRow(row, rowIndex, headers) {
-        if (this.isEmptyRow(row)) {
-            return { isValid: false, errors: [this.getMessage('emptyRow', { row: rowIndex })] };
-        }
-
         let isValid = true;
         let errors = [];
 
         for (let i = 0; i < headers.length; i++) {
             const header = headers[i];
             const value = row[header];
-            const definition = this.columnDefinitions[header];
+            const definition = Object.values(this.columnDefinitions)[i];
             const type = definition && definition.dataType;
             const dateFormat = definition && definition.format;
             const decimalPlaces = definition && definition.decimalPlaces;
@@ -190,6 +211,15 @@ class CSVValidator {
             const customErrors = (definition && definition.errors) || {};
             const customRequiredValidator = (definition && definition.customRequiredValidator) || this.globalCustomValidators.required;
             const customValidator = definition && definition.customValidator;
+
+            // Check if value is blank
+            if (this.isBlankValue(value)) {
+                if (required) {
+                    isValid = false;
+                    errors.push(`Row ${rowIndex}: ${customErrors.required || this.getMessage('required', { row: rowIndex, column: i + 1, header })}`);
+                }
+                continue; // Skip further validation if value is blank
+            }
 
             // Track duplicates if validation is enabled for this column
             if (validateDuplicates) {
@@ -202,27 +232,24 @@ class CSVValidator {
                 this.seenValues[header][value].push(rowIndex);
             }
 
-            // Check for required fields using custom validator if provided
-            if (required && (customRequiredValidator ? !customRequiredValidator(value, header) : (value === undefined || value === null || value === ''))) {
-                isValid = false;
-                errors.push(`Row ${rowIndex}: ${customErrors.required || this.getMessage('required', { row: rowIndex, column: i + 1, header })}`);
-                continue; // No need to check further validation if required field is missing
-            }
-
             // Use custom validator for this column if provided
-            if (customValidator) {
-                const customValidationResult = customValidator(value);
-                if (customValidationResult !== true) {
-                    isValid = false;
-                    errors.push(`Row ${rowIndex}: ${customValidationResult || customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header })}`);
-                }
-            } else if (!this.validateValue(value, type, dateFormat, decimalPlaces)) {
+            if (customValidator && !customValidator(value)) {
                 isValid = false;
                 errors.push(`Row ${rowIndex}: ${customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header })}`);
+            } else if (!customValidator && !this.validateValue(value, type, dateFormat, decimalPlaces)) {
+                isValid = false;
+                errors.push(`Row ${rowIndex}: ${customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header, format: Array.isArray(dateFormat) ? dateFormat.join(', ') : dateFormat })}`);
             }
         }
 
         return { isValid, errors };
+    }
+
+    isBlankValue(value) {
+        if (this.customEmptyValueCheck) {
+            return this.customEmptyValueCheck(value);
+        }
+        return value === undefined || value === null || value.trim() === '';
     }
 
     validateValue(value, type, dateFormat, decimalPlaces) {
@@ -247,9 +274,9 @@ class CSVValidator {
         } else if (type === 'url') {
             return this.isURL(value);
         } else if (type === 'phoneNumber') {
-            return this.isPhoneNumber(value);
+            return this.isPhoneNumber(value, dateFormat);
         } else if (type === 'currency') {
-            return this.isCurrency(value);
+            return this.isCurrency(value, dateFormat);
         } else if (type === 'number') {
             return this.isNumber(value);
         } else if (type === 'string') {
@@ -266,24 +293,35 @@ class CSVValidator {
         if (value === undefined || value === null || value === '' || isNaN(value)) {
             return false;
         }
-        const regex = new RegExp(`^\\d+(\\.\\d{1,${decimalPlaces}})?$`);
-        return regex.test(value);
+
+        value = value.trim();
+
+        // Allow comma as thousand separator and handle negative values
+        const regex = decimalPlaces !== null && decimalPlaces !== undefined
+            ? new RegExp(`^-?\\d{1,3}(,\\d{3})*(\\.\\d{1,${decimalPlaces}})?$`)
+            : /^-?\d{1,3}(,\d{3})*(\.\d+)?$/;
+        let result = regex.test(value.replace(/,/g, ''));
+        return result;
     }
 
     isBoolean(value) {
         return value === 'true' || value === 'false';
     }
 
-    isDate(value, dateFormat) {
-        if (!dateFormat) return false;
-        const date = moment(value, dateFormat, true);
-        return date.isValid();
+    isDate(value, dateFormats) {
+        if (!dateFormats) return false;
+        if (!Array.isArray(dateFormats)) {
+            dateFormats = [dateFormats];
+        }
+        return dateFormats.some(format => moment(value, format, true).isValid());
     }
 
-    isDateTime(value, dateFormat) {
-        if (!dateFormat) return false;
-        const dateTime = moment(value, dateFormat, true);
-        return dateTime.isValid();
+    isDateTime(value, dateFormats) {
+        if (!dateFormats) return false;
+        if (!Array.isArray(dateFormats)) {
+            dateFormats = [dateFormats];
+        }
+        return dateFormats.some(format => moment(value, format, true).isValid());
     }
 
     isPercentage(value) {
@@ -301,22 +339,25 @@ class CSVValidator {
         return regex.test(value);
     }
 
-    isPhoneNumber(value) {
+    isPhoneNumber(value, format) {
         const regex = /^\d{3}-\d{3}-\d{4}$/;
         return regex.test(value);
     }
 
-    isCurrency(value) {
+    isCurrency(value, format) {
         const regex = /^\d+(\.\d{2})?$/;
         return regex.test(value);
     }
 
     isNumber(value) {
-        return value !== undefined && value !== null && value !== '' && !isNaN(value);
+        if (typeof value === 'string') {
+            value = value.replace(/,/g, '');
+        }
+        return this.isInteger(value) || this.isDecimal(value, null);
     }
 
     isEmptyRow(row) {
-        return Object.values(row).every(value => value === null || value === '');
+        return Object.values(row).every(value => this.isBlankValue(value));
     }
 }
 

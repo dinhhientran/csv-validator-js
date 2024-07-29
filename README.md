@@ -1,16 +1,17 @@
-
 # CSV Validator JS
 
-CSV Validator JS is a robust JavaScript library for validating CSV files with custom rules and error messages. It supports various data types, including integers, decimals, booleans, dates, datetimes, percentages, emails, URLs, phone numbers, currencies, and general numbers. The library also supports multi-language error messages.
+A robust JavaScript library for validating CSV files with custom rules and error messages.
 
 ## Features
 
-- Validate various data types.
-- Customizable error messages.
-- Support for multiple languages.
-- Duplicate value detection.
-- Custom validators.
-- Decimal place validation for decimals.
+- Validate CSV files with custom rules for each column.
+- Support for multiple data types: integer, decimal, boolean, date, datetime, string, percentage, email, URL, phone number, currency, and number.
+- Customizable error messages for each column and validation rule.
+- Multi-language support (English, Vietnamese, Chinese, Spanish, French).
+- Option to skip empty lines.
+- Option to validate header names.
+- Custom empty value check function.
+- Configurable starting row index for error messages.
 
 ## Installation
 
@@ -18,172 +19,212 @@ CSV Validator JS is a robust JavaScript library for validating CSV files with cu
 npm install csv-validator-js
 ```
 
-## Usage
+## Data Types
 
-### Basic Example
+- `integer`: Validates that the value is an integer.
+- `decimal`: Validates that the value is a decimal number. You can specify the number of decimal places.
+- `boolean`: Validates that the value is a boolean.
+- `date`: Validates that the value is a date. You can specify the date format.
+- `datetime`: Validates that the value is a datetime. You can specify the datetime format.
+- `string`: Validates that the value is a string.
+- `percentage`: Validates that the value is a percentage.
+- `email`: Validates that the value is an email address.
+- `url`: Validates that the value is a URL.
+- `phoneNumber`: Validates that the value is a phone number.
+- `currency`: Validates that the value is a currency.
+- `number`: Validates that the value is a number.
 
-#### Using CSV Content as a String
+## Options
 
+### columnDefinitions (required)
+An object defining the validation rules for each column. Each key should correspond to a column header, and each value should be an object specifying the validation rules and error messages for that column.
+
+Example:
 ```javascript
-import CSVValidator from 'csv-validator-js';
-
-// Define column rules
 const columnDefinitions = {
-    'InvoiceNumber': {
-        dataType: 'integer',
-        required: true,
-        validateDuplicates: true,
-        errors: {
-            required: "Invoice Number is required."
-        }
+    'Invoice Number': {
+        dataType: 'string',
+        required: true, // Optional, default false
     },
-    'InvoiceAmount': {
-        dataType: 'currency',
-        format: 'USD',
-        required: true,
-        errors: {
-            required: "Invoice Amount is required."
-        }
-    },
-    'InvoiceDate': {
-        dataType: 'date',
-        format: 'MM/DD/YYYY',
-        required: true,
-        errors: {
-            required: "Invoice Date is required."
-        }
-    },
-    'DueDate': {
-        dataType: 'date',
-        format: 'MM/DD/YYYY',
-        required: false // Optional
-    },
-    'CustomerEmail': {
-        dataType: 'email',
-        required: true,
-        errors: {
-            required: "Customer Email is required."
-        }
-    },
-    'CustomerWebsite': {
-        dataType: 'url',
-        required: false // Optional
-    },
-    'CustomerPhone': {
-        dataType: 'phoneNumber',
-        format: 'XXX-XXX-XXXX',
-        required: false // Optional
-    },
-    'DiscountRate': {
-        dataType: 'percentage',
-        required: false, // Optional
-        customValidator: function(value) {
-            return /^\d+(\.\d{1,3})?\s?%$/.test(value);
-        }
-    },
-    'TotalAmount': {
-        dataType: 'number',
-        required: true,
-        errors: {
-            required: "Total Amount is required.",
-            invalid: "Total Amount must be a valid number."
-        }
-    },
-    'TaxAmount': {
+    'Invoice Amount': {
         dataType: 'decimal',
         required: true,
         decimalPlaces: 2,
         errors: {
-            required: "Tax Amount is required.",
-            invalid: "Tax Amount must be a valid decimal number with up to 2 decimal places."
+            required: "Invoice Amount is required.", // Optional
+            invalid: "Invoice Amount must be an decimal with two decimal places." //optional
         }
     },
-    'TransactionDate': {
-        dataType: 'datetime',
-        format: 'MM/DD/YYYY HH:mm:ss',
+    'Custom Field': {
+        dataType: 'customType',
+        customValidator: (value) => value === 'custom', // Optional
+        errors: {
+            invalid: "Custom Field must have the value 'custom'." // Optional
+        }
+    }
+};
+```
+
+### globalCustomValidators (optional)
+An object defining global custom validators for specific data types. Default is an empty object.
+
+Example:
+```javascript
+const globalCustomValidators = {
+    'customType': (value) => { return value === 'custom'; }
+};
+```
+
+### defaultInvalidMessages (optional)
+An object defining default invalid messages for specific data types. Default is an empty object.
+
+Example:
+```javascript
+const defaultInvalidMessages = {
+    'integer': "This field must be an integer."
+};
+```
+
+### language (optional)
+The language for error messages. Supported languages are 'en', 'vi', 'zh', 'es', and 'fr'. Default is 'en'.
+
+Example:
+```javascript
+const language = 'en';
+```
+
+### messages (optional)
+An object defining custom error messages. Default is an empty object.
+
+Example:
+```javascript
+const messages = {
+    'required': "This field is required."
+};
+```
+
+### skipEmptyLines (optional)
+A boolean indicating whether to skip empty lines. Default is true.
+
+Example:
+```javascript
+const skipEmptyLines = true;
+```
+
+### validateHeaderNames (optional)
+A boolean indicating whether to validate header names. Default is true.
+
+Example:
+```javascript
+const validateHeaderNames = true;
+```
+
+### customEmptyValueCheck (optional)
+A function to check if a value is considered empty. Default is null.
+
+Example:
+```javascript
+const customEmptyValueCheck = (value) => { return value === ''; };
+```
+
+### errorMessageRowIndexStart (optional)
+The starting index for row numbers in error messages. Default is 2.
+
+Example:
+```javascript
+const errorMessageRowIndexStart = 2;
+```
+
+## Usage
+
+### Basic Usage
+
+```javascript
+import CSVValidator from 'csv-validator-js';
+
+const columnDefinitions = {
+    'Invoice Number': {
+        dataType: 'integer',
         required: true,
         errors: {
-            required: "Transaction Date is required.",
-            invalid: "Transaction Date must be a valid datetime."
+            required: "Invoice Number is required.",
+            invalid: "Invoice Number must be an integer."
+        }
+    },
+    'Invoice Amount': {
+        dataType: 'currency',
+        required: true,
+        errors: {
+            required: "Invoice Amount is required.",
+            invalid: "Invalid currency value"
+        }
+    },
+    'Invoice Date': {
+        dataType: 'date',
+        format: 'MM/DD/YYYY',
+        errors: {
+            invalid: "Invalid date value"
+        }
+    },
+    'Due Date': {
+        dataType: 'date',
+        format: 'MM/DD/YYYY',
+        errors: {
+            invalid: "Invalid date value"
+        }
+    },
+    'Customer Email': {
+        dataType: 'email',
+        errors: {
+            invalid: "Invalid email address"
+        }
+    },
+    'Customer Website': {
+        dataType: 'url',
+        errors: {
+            invalid: "Invalid URL"
+        }
+    },
+    'Customer Phone': {
+        dataType: 'phoneNumber',
+        errors: {
+            invalid: "Invalid phone number"
+        }
+    },
+    'Discount Rate': {
+        dataType: 'percentage',
+        errors: {
+            invalid: "Invalid percentage value"
+        }
+    },
+    'Tax Amount': {
+        dataType: 'decimal',
+        decimalPlaces: 2,
+        errors: {
+            invalid: "Invalid decimal value"
+        }
+    },
+    'Transaction Date': {
+        dataType: 'datetime',
+        format: 'MM/DD/YYYY HH:mm:ss',
+        errors: {
+            invalid: "Invalid datetime value"
         }
     }
 };
 
-// Define global custom validators (Optional)
-const globalCustomValidators = {
-    required: function(value, header) {
-        return value !== undefined && value !== null && value !== '';
-    },
-    percentage: function(value) {
-        const regex = /^\d+(\.\d{1,3})?\s?%$/;
-        return regex.test(value);
-    }
-};
+const validator = new CSVValidator({
+    columnDefinitions: columnDefinitions,
+    validateHeaderNames: false
+});
 
-// Default invalid messages (Optional)
-const defaultInvalidMessages = {
-    integer: 'Invalid integer value',
-    decimal: 'Invalid decimal value',
-    boolean: 'Invalid boolean value',
-    date: 'Invalid date value',
-    datetime: 'Invalid datetime value',
-    string: 'Invalid string value',
-    percentage: 'Invalid percentage value',
-    email: 'Invalid email address',
-    url: 'Invalid URL',
-    phoneNumber: 'Invalid phone number',
-    currency: 'Invalid currency value',
-    number: 'Invalid number value'
-};
-
-// Messages for different languages (Optional)
-const messages = {
-    es: {
-        required: 'Falta el valor requerido en la fila {row}, columna {column} ({header}).',
-        duplicate: 'Valor duplicado "{value}" encontrado en las filas: {rows} para la columna: {column}.',
-        emptyRow: 'La fila {row} está vacía.',
-        headerLength: 'Desajuste de longitud de encabezado. Se esperaban {expected} encabezados pero se obtuvieron {actual}.',
-        valid: 'El archivo CSV es válido.',
-        ...defaultInvalidMessages
-    },
-    fr: {
-        required: 'Valeur requise manquante à la ligne {row}, colonne {column} ({header}).',
-        duplicate: 'Valeur en double "{value}" trouvée dans les lignes : {rows} pour la colonne : {column}.',
-        emptyRow: 'La ligne {row} est vide.',
-        headerLength: 'Désaccord sur la longueur de l'en-tête. {expected} en-têtes attendus mais {actual} obtenus.',
-valid: 'Le fichier CSV est valide.',
-...defaultInvalidMessages
-},
-vi: {
-    required: 'Cần nhập giá trị ở hàng {row}, cột {column} ({header}).',
-        duplicate: 'Giá trị "{value}" bị lặp lại ở các hàng: {rows} cho cột: {column}.',
-        emptyRow: 'Hàng {row} bị trống.',
-        headerLength: 'Số lượng cột không đúng. Cần phải có {expected} cột, nhưng thấy {actual}.',
-        valid: 'Tệp CSV hợp lệ.',
-...defaultInvalidMessages
-},
-zh: {
-    required: '第 {row} 行，第 {column} 列 ({header}) 缺少必填值。',
-        duplicate: '在第 {rows} 行找到的重复值 "{value}"，列: {column}。',
-        emptyRow: '第 {row} 行为空。',
-        headerLength: '标题长度不匹配。预计 {expected} 个标题，但得到 {actual} 个。',
-        valid: 'CSV 文件有效。',
-...defaultInvalidMessages
-}
-};
-
-// Initialize the validator
-const validator = new CSVValidator(columnDefinitions, globalCustomValidators, defaultInvalidMessages, 'vi', messages);
-
-// Example CSV content as a string
 const csvContent = `
-InvoiceNumber,InvoiceAmount,InvoiceDate,DueDate,CustomerEmail,CustomerWebsite,CustomerPhone,DiscountRate,TotalAmount,TaxAmount,TransactionDate
-123,100.00,12/31/2020,01/31/2021,test@example.com,http://example.com,123-456-7890,10%,110.00,10.00,12/31/2020 14:30:00
-,invalid-amount,31/12/2020,2021-01-31,invalid-email,example.com,1234567890,15.5%,125.50,invalid,invalid
+Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Website,Customer Phone,Discount Rate,Tax Amount,Transaction Date
+123,100.00,12/31/2020,01/31/2021,test@example.com,http://example.com,123-456-7890,10%,110.00,12/31/2020 14:30:00
+,invalid-amount,31/12/2020,2021-01-31,invalid-email,example.com,1234567890,15.5%,invalid,invalid
 `;
 
-// Parse and validate the CSV content
-validator.parseAndValidateCSV(csvContent, function(isValid, result) {
+validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
     if (isValid) {
         console.log('CSV file is valid.');
     } else {
@@ -192,31 +233,72 @@ validator.parseAndValidateCSV(csvContent, function(isValid, result) {
 });
 ```
 
-#### Using CSV Content as a File
+### Using with File
 
 ```javascript
-import CSVValidator from 'csv-validator-js';
+_onDrop = (acceptedFiles) => {
+    const csvColumns = {
+        'Status': { dataType: 'string', required: true },
+        'Series': { dataType: 'string', required: true },
+        'Number': { dataType: 'integer' },
+        'Deal': { dataType: 'string', required: true },
+        'Issuer': { dataType: 'string' },
+        'IssuerId': { dataType: 'string', required: true },
+        'Buyer': { dataType: 'string' },
+        'BuyerId': { dataType: 'string', required: true },
+        'Funder': { dataType: 'string' },
+        'FaceValue': { dataType: 'number', required: true },
+        'RequiredRepaymentAmount': { dataType: 'number' },
+        'Interest': { data type: 'number' },
+        'Rate': { data type: 'percentage' },
+        'Tiie': { data type: 'string' },
+        'CashInterest': { data type: 'number' },
+        'ServiceFee': { data type: 'number' },
+        'ServiceFeeRate': { data type: 'percentage' },
+        'Vat': { data type: 'number' },
+        'VatRate': { data type: 'percentage' },
+        'TechFee': { data type: 'number' },
+        'TechFeeRate': { data type: 'percentage' },
+        'VatTechFee': { data type: 'number' },
+        'VatTechFeeRate': { data type: 'percentage' },
+        'AdvanceAmount': { data type: 'number' },
+        'AdvanceRate': { data type: 'percentage' },
+        'Cap': { data type: 'number' },
+        'CapRate': { data type: 'percentage' },
+        'CapitalBalance': { data type: 'number' },
+        'InterestBalance': { data type: 'number' },
+        'OverdueInterestBalance': { data type: 'number' },
+        'TotalBalance': { data type: 'number' },
+        'Period': { data type: 'integer' },
+        'InitialDate': { data type: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'], required: true },
+        'DueDate': { data type: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'], required: true },
+        'AllowanceDate': { data type: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'] }
+    };
 
-// Define column rules
-const columnDefinitions = {
-    // same as above
+    const validator = new CSVValidator({
+        columnDefinitions: csvColumns,
+        validateHeaderNames: false
+    });
+
+    let allErrors = [];
+    let valid = true;
+
+    acceptedFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            validator.parseAndValidateCSVFile(file, (isValid, result) => {
+                if (isValid) {
+                    console.log('CSV file is valid.');
+                } else {
+                    valid = false;
+                    allErrors are allErrors.concat(result);
+                    console.error('CSV file is invalid:', result);
+                }
+            });
+        };
+        reader.readAsText(file);
+    });
 };
-
-// Initialize the validator
-const validator = new CSVValidator(columnDefinitions, globalCustomValidators, defaultInvalidMessages, 'vi', messages);
-
-document.getElementById('csvFileInput').addEventListener('change', function(event) {
-    const file = event.target.files[0];
-    if (file) {
-        validator.parseAndValidateCSV(file, function(isValid, result) {
-            if (isValid) {
-                console.log('CSV file is valid.');
-            } else {
-                console.error('CSV file is invalid:', result);
-            }
-        }, true);
-    }
-});
 ```
 
 ### HTML for File Upload
@@ -230,7 +312,7 @@ document.getElementById('csvFileInput').addEventListener('change', function(even
 To inspect the validation results, you can use the callback function provided in the `parseAndValidateCSV` method. Here is an example of how to log and handle the validation results:
 
 ```javascript
-validator.parseAndValidateCSV(csvContent, function(isValid, result) {
+validator.parseAndValidateCSVFile(csvContent, function(isValid, result) {
     if (isValid) {
         console.log('CSV file is valid.');
     } else {
@@ -260,3 +342,8 @@ result:
 ## License
 
 This project is licensed under the MIT License.
+
+## Author
+
+- **Author Name**: [Hien Tran](https://github.com/dinhhientran)
+- **Contact**: dinhientrn@gmail.com
