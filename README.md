@@ -137,7 +137,7 @@ const errorMessageRowIndexStart = 2;
 
 ## Usage
 
-### Basic Usage
+### Using with String
 
 ```javascript
 import CSVValidator from 'csv-validator-js';
