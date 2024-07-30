@@ -19,20 +19,119 @@ A robust JavaScript library for validating CSV files with custom rules and error
 npm install csv-validator-js
 ```
 
-## Data Types
+### Basic Usage
 
-- `integer`: Validates that the value is an integer.
-- `decimal`: Validates that the value is a decimal number. You can specify the number of decimal places.
-- `boolean`: Validates that the value is a boolean.
-- `date`: Validates that the value is a date. You can specify the date format.
-- `datetime`: Validates that the value is a datetime. You can specify the datetime format.
-- `string`: Validates that the value is a string.
-- `percentage`: Validates that the value is a percentage.
-- `email`: Validates that the value is an email address.
-- `url`: Validates that the value is a URL.
-- `phoneNumber`: Validates that the value is a phone number.
-- `currency`: Validates that the value is a currency.
-- `number`: Validates that the value is a number.
+Define the rules for each column in the CSV file. In this basic example, no optional options are used.
+
+```javascript
+import CSVValidator from 'csv-validator-js';
+
+const columnDefinitions = {
+'Invoice Number': { dataType: 'integer', required: true },
+'Invoice Amount': { dataType: 'decimal', required: true },
+'Invoice Date': { dataType: 'date' },
+'Due Date': { dataType: 'date' }
+};
+
+const validator = new CSVValidator({
+columnDefinitions
+});
+
+const csvContent = `
+Invoice Number,Invoice Amount,Invoice Date,Due Date
+123,100.00,12/31/2020,01/31/2021
+124,200.00,01/15/2021,02/15/2021
+`;
+
+validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
+    if (isValid) {
+        console.log('CSV file is valid.');
+    } else {
+        console.error('CSV file is invalid:', result);
+    }
+});
+```
+
+### Data Types
+
+Defines the types of data each column in the CSV file can hold.
+
+- **integer**: Whole numbers without decimal points.
+- **decimal**: Numbers with decimal points. Optionally specify the number of decimal places and allow thousand separators.
+- **boolean**: True or false values.
+- **date**: Date values. Optionally specify the date format.
+- **datetime**: Date and time values. Optionally specify the date-time format.
+- **string**: Text values.
+- **percentage**: Percentage values.
+- **email**: Email addresses.
+- **url**: URL addresses.
+- **phoneNumber**: Phone numbers. Optionally specify the format.
+- **currency**: Currency values.
+- **number**: General numeric values. Optionally allow thousand separators.
+
+Example of defining columns with different data types:
+
+```javascript
+const columnDefinitions = {
+    'IntegerColumn': {
+        dataType: 'integer',
+    },
+    'DecimalColumn': {
+        dataType: 'decimal',
+        decimalPlaces: 2, // Optional
+        allowThousandSeparator: true // Optional
+    },
+    'BooleanColumn': {
+        dataType: 'boolean' // true, false, TRUE, FALSE
+    },
+    'DateColumn': {
+        dataType: 'date',
+        format: 'MM/DD/YYYY' // Optional, can be array of formats ['MM/DD/YYYY', 'M/D/YYYY']
+    },
+    'DateTimeColumn': {
+        dataType: 'datetime',
+        format: 'MM/DD/YYYY HH:mm:ss' // Optional,  can be array of formats ['MM/DD/YYYY HH:mm:ss', 'M/D/YYYY HH:mm:ss']
+    },
+    'StringColumn': {
+        dataType: 'string'
+    },
+    'PercentageColumn': {
+        dataType: 'percentage' // 10%, 20.5%
+    },
+    'EmailColumn': {
+        dataType: 'email'
+    },
+    'URLColumn': {
+        dataType: 'url' // http://example.com
+    },
+    'PhoneNumberColumn': {
+        dataType: 'phoneNumber',
+        format: 'XXX-XXX-XXXX' // Optional
+    },
+    'NumberColumn': {
+        dataType: 'number',
+        allowThousandSeparator: true // Optional
+    },
+    'CurrencyColumn': {
+        dataType: 'currency',
+        symbol: '$',                       // Optional: Currency symbol
+        require_symbol: false,             // Optional: Require currency symbol (default: false)
+        allow_space_after_symbol: false,   // Optional: Allow space after symbol (default: false)
+        symbol_after_digits: false,        // Optional: Symbol after digits (default: false)
+        allow_negatives: true,             // Optional: Allow negatives (default: true)
+        parens_for_negatives: false,       // Optional: Parentheses for negatives (default: false)
+        negative_sign_before_digits: false,// Optional: Negative sign before digits (default: false)
+        negative_sign_after_digits: false, // Optional: Negative sign after digits (default: false)
+        allow_negative_sign_placeholder: false,// Optional: Allow negative sign placeholder (default: false)
+        thousands_separator: ',',          // Optional: Thousands separator (default: ',')
+        decimal_separator: '.',            // Optional: Decimal separator (default: '.')
+        allow_decimal: true,               // Optional: Allow decimal (default: true)
+        require_decimal: false,            // Optional: Require decimal (default: false)
+        digits_after_decimal: [2],         // Optional: Digits after decimal (default: [2])
+        allow_space_after_digits: false    // Optional: Allow space after digits (default: false)
+    }
+};
+```
 
 ## Options
 
@@ -50,16 +149,16 @@ const columnDefinitions = {
         dataType: 'decimal',
         required: true,
         decimalPlaces: 2,
-        errors: {
-            required: "Invoice Amount is required.", // Optional
-            invalid: "Invoice Amount must be an decimal with two decimal places." //optional
+        errors: { // Optional custom error messages
+            required: "Invoice Amount is required.",
+            invalid: "Invoice Amount must be an decimal with two decimal places."
         }
     },
     'Custom Field': {
         dataType: 'customType',
         customValidator: (value) => value === 'custom', // Optional
-        errors: {
-            invalid: "Custom Field must have the value 'custom'." // Optional
+        errors: { // Optional custom error messages
+            invalid: "Custom Field must have the value 'custom'."
         }
     }
 };
@@ -127,15 +226,56 @@ Example:
 const customEmptyValueCheck = (value) => { return value === ''; };
 ```
 
-### errorMessageRowIndexStart (optional)
-The starting index for row numbers in error messages. Default is 2.
+### errorMessageRowIndexStart (Optional, default: 2)
 
-Example:
-```javascript
-const errorMessageRowIndexStart = 2;
+This option specifies the starting index for row numbers in error messages. By default, the value is set to 2, which assumes that the first row of the CSV file contains headers and the data rows start from the second line. Adjusting this value can help match the row numbers in error messages to those in your actual CSV file.
+
+#### Example
+
+Consider the following CSV content:
+
+```csv
+Invoice Number,Invoice Amount,Invoice Date,Due Date
+123,1000.00,12/31/2020,01/31/2021
+124,invalid-amount,01/01/2021,invalid-date
 ```
 
-## Usage
+With errorMessageRowIndexStart set to 2 (the default), the error messages will use row numbers starting from 2:
+
+```javascript
+const validator = new CSVValidator({
+    columnDefinitions: {
+        'Invoice Number': { dataType: 'integer', required: true },
+        'Invoice Amount': { dataType: 'decimal', required: true },
+        'Invoice Date': { dataType: 'date', format: 'MM/DD/YYYY' },
+        'Due Date': { dataType: 'date', format: 'MM/DD/YYYY' }
+    },
+    errorMessageRowIndexStart: 2
+});
+
+const csvContent = `
+Invoice Number,Invoice Amount,Invoice Date,Due Date
+123,1000.00,12/31/2020,01/31/2021
+124,invalid-amount,01/01/2021,invalid-date
+`;
+
+validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
+    if (!isValid) {
+        console.error('CSV file is invalid:', result);
+    }
+});
+```
+
+The error messages will be:
+
+```
+[
+    "Row 3: Invalid decimal value"
+    "Row 3: Invalid date value (expected formats: MM/DD/YYYY)"
+]
+```
+
+## Advanced Usage
 
 ### Using with String
 
@@ -249,30 +389,30 @@ _onDrop = (acceptedFiles) => {
         'Funder': { dataType: 'string' },
         'FaceValue': { dataType: 'number', required: true },
         'RequiredRepaymentAmount': { dataType: 'number' },
-        'Interest': { data type: 'number' },
-        'Rate': { data type: 'percentage' },
-        'Tiie': { data type: 'string' },
-        'CashInterest': { data type: 'number' },
-        'ServiceFee': { data type: 'number' },
-        'ServiceFeeRate': { data type: 'percentage' },
-        'Vat': { data type: 'number' },
-        'VatRate': { data type: 'percentage' },
-        'TechFee': { data type: 'number' },
-        'TechFeeRate': { data type: 'percentage' },
-        'VatTechFee': { data type: 'number' },
-        'VatTechFeeRate': { data type: 'percentage' },
-        'AdvanceAmount': { data type: 'number' },
-        'AdvanceRate': { data type: 'percentage' },
-        'Cap': { data type: 'number' },
-        'CapRate': { data type: 'percentage' },
-        'CapitalBalance': { data type: 'number' },
-        'InterestBalance': { data type: 'number' },
-        'OverdueInterestBalance': { data type: 'number' },
-        'TotalBalance': { data type: 'number' },
-        'Period': { data type: 'integer' },
-        'InitialDate': { data type: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'], required: true },
-        'DueDate': { data type: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'], required: true },
-        'AllowanceDate': { data type: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'] }
+        'Interest': { dataType: 'number' },
+        'Rate': { dataType: 'percentage' },
+        'Tiie': { dataType: 'string' },
+        'CashInterest': { dataType: 'number' },
+        'ServiceFee': { dataType: 'number' },
+        'ServiceFeeRate': { dataType: 'percentage' },
+        'Vat': { dataType: 'number' },
+        'VatRate': { dataType: 'percentage' },
+        'TechFee': { dataType: 'number' },
+        'TechFeeRate': { dataType: 'percentage' },
+        'VatTechFee': { dataType: 'number' },
+        'VatTechFeeRate': { dataType: 'percentage' },
+        'AdvanceAmount': { dataType: 'number' },
+        'AdvanceRate': { dataType: 'percentage' },
+        'Cap': { dataType: 'number' },
+        'CapRate': { dataType: 'percentage' },
+        'CapitalBalance': { dataType: 'number' },
+        'InterestBalance': { dataType: 'number' },
+        'OverdueInterestBalance': { dataType: 'number' },
+        'TotalBalance': { dataType: 'number' },
+        'Period': { dataType: 'integer' },
+        'InitialDate': { dataType: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'], required: true },
+        'DueDate': { dataType: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'], required: true },
+        'AllowanceDate': { dataType: 'date', format: ['MM/DD/YYYY', 'M/D/YYYY'] }
     };
 
     const validator = new CSVValidator({
@@ -291,7 +431,7 @@ _onDrop = (acceptedFiles) => {
                     console.log('CSV file is valid.');
                 } else {
                     valid = false;
-                    allErrors are allErrors.concat(result);
+                    allErrors.concat(result);
                     console.error('CSV file is invalid:', result);
                 }
             });
@@ -309,7 +449,7 @@ _onDrop = (acceptedFiles) => {
 
 ### Result Inspection
 
-To inspect the validation results, you can use the callback function provided in the `parseAndValidateCSV` method. Here is an example of how to log and handle the validation results:
+To inspect the validation results, you can use the callback function provided in the `parseAndValidateCSVFile` method. Here is an example of how to log and handle the validation results:
 
 ```javascript
 validator.parseAndValidateCSVFile(csvContent, function(isValid, result) {

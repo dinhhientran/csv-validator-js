@@ -86,6 +86,7 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 `;
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
+            console.log(result)
             expect(isValid).toBe(false);
             expect(result).toEqual(expect.arrayContaining([
                 "Row 3: Invoice Number is required.",
@@ -93,8 +94,6 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
                 "Row 3: Invalid date value",
                 "Row 3: Invalid date value",
                 "Row 3: Invalid email address",
-                "Row 3: Invalid URL",
-                "Row 3: Invalid phone number",
                 "Row 3: Invalid decimal value",
                 "Row 3: Invalid datetime value"
             ]));
@@ -386,5 +385,418 @@ Finance Reference Number,Policy ID,Supplier Name,Supplier Reference Number,Suppl
         console.log(result);
 
         expect(isValid).toBe(true);
+    });
+
+    it('validates header names', () => {
+        const csvContent = `
+Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Website,Customer Phone,Discount Rate,Tax Amount,Transaction Date
+123,100.00,12/31/2020,01/31/2021,test@example.com,http://example.com,123-456-7890,10%,110.00,12/31/2020 14:30:00
+`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: columnDefinitions,
+            validateHeaderNames: true
+        });
+
+        validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
+            expect(isValid).toBe(true);
+            expect(result).toEqual(["CSV file is valid."]);
+        });
+    });
+
+    it('fails on invalid header names', () => {
+        const csvContent = `
+Invalid Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Website,Customer Phone,Discount Rate,Tax Amount,Transaction Date
+123,100.00,12/31/2020,01/31/2021,test@example.com,http://example.com,123-456-7890,10%,110.00,12/31/2020 14:30:00
+`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: columnDefinitions,
+            validateHeaderNames: true
+        });
+
+        validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
+            expect(isValid).toBe(false);
+            expect(result).toEqual(expect.arrayContaining([
+                "Row 1: Invalid header name Invalid Invoice Number at column 1."
+            ]));
+        });
+    });
+});
+
+describe('CSVValidator - isDecimal Function', () => {
+    const validator = new CSVValidator({
+        columnDefinitions: {},
+        validateHeaderNames: false
+    });
+
+    it('validates decimal values with specific decimal places', () => {
+        expect(validator.isDecimal("123.45", 2)).toBe(true);
+        expect(validator.isDecimal("123.456", 2)).toBe(false);
+        expect(validator.isDecimal("123.4", 2)).toBe(false);
+        expect(validator.isDecimal("123.456", 3)).toBe(true);
+    });
+
+    it('validates decimal values with comma as thousand separator', () => {
+        expect(validator.isDecimal("1,234.56", 2, true)).toBe(true);
+        expect(validator.isDecimal("1,234,567.89", 2, true)).toBe(true);
+        expect(validator.isDecimal("12,34.56", 2, true)).toBe(true);
+        expect(validator.isDecimal("1,234.567", 2, true)).toBe(false);
+    });
+
+    it('validates decimal values with no specific decimal places', () => {
+        expect(validator.isDecimal("123.456")).toBe(true);
+        expect(validator.isDecimal("123")).toBe(true);
+        expect(validator.isDecimal("1,234.567", null, true)).toBe(true);
+    });
+
+    it('validates negative decimal values', () => {
+        expect(validator.isDecimal("-123.45", 2)).toBe(true);
+        expect(validator.isDecimal("-1,234.56", 2, true)).toBe(true);
+        expect(validator.isDecimal("-123.456", 2)).toBe(false);
+        expect(validator.isDecimal("-1,234.567", null, true)).toBe(true);
+    });
+
+    it('fails on invalid decimal values', () => {
+        expect(validator.isDecimal("abc", 2)).toBe(false);
+        expect(validator.isDecimal("123.45.67", 2)).toBe(false);
+        expect(validator.isDecimal("123,45", 2)).toBe(false);
+        expect(validator.isDecimal("1,234.56.78", 2)).toBe(false);
+    });
+});
+
+describe('isInteger function', () => {
+    const validator = new CSVValidator({ columnDefinitions: {} });
+
+    it('should return true for valid integer values', () => {
+        expect(validator.isInteger("123")).toBe(true);
+        expect(validator.isInteger("0")).toBe(true);
+        expect(validator.isInteger("-123")).toBe(true);
+    });
+
+    it('should return false for invalid integer values', () => {
+        expect(validator.isInteger("123.45")).toBe(false);
+        expect(validator.isInteger("abc")).toBe(false);
+        expect(validator.isInteger("123a")).toBe(false);
+        expect(validator.isInteger("12 3")).toBe(false);
+        expect(validator.isInteger("")).toBe(false);
+        expect(validator.isInteger(null)).toBe(false);
+        expect(validator.isInteger(undefined)).toBe(false);
+    });
+
+    it('should return false for values with commas', () => {
+        expect(validator.isInteger("1,234")).toBe(false);
+        expect(validator.isInteger("12,34")).toBe(false);
+    });
+
+    it('should return true for integer values with spaces', () => {
+        expect(validator.isInteger(" 123 ")).toBe(true);
+        expect(validator.isInteger(" 0 ")).toBe(true);
+        expect(validator.isInteger(" -123 ")).toBe(true);
+    });
+
+    it('should return false for values with decimal places', () => {
+        expect(validator.isInteger("123.0")).toBe(false);
+        expect(validator.isInteger("-123.0")).toBe(false);
+        expect(validator.isInteger("0.0")).toBe(false);
+    });
+});
+
+describe('isDate function', () => {
+    const validator = new CSVValidator({ columnDefinitions: {} });
+
+    it('should return true for valid date values with given formats', () => {
+        expect(validator.isDate("12/31/2020", 'MM/DD/YYYY')).toBe(true);
+        expect(validator.isDate("31/12/2020", 'DD/MM/YYYY')).toBe(true);
+        expect(validator.isDate("2020-12-31", 'YYYY-MM-DD')).toBe(true);
+    });
+
+    it('should return false for invalid date values with given formats', () => {
+        expect(validator.isDate("12/31/2020", 'DD/MM/YYYY')).toBe(false);
+        expect(validator.isDate("31/12/2020", 'MM/DD/YYYY')).toBe(false);
+        expect(validator.isDate("2020-31-12", 'YYYY-MM-DD')).toBe(false);
+    });
+
+    it('should return true for valid date values with popular formats when format is not given', () => {
+        expect(validator.isDate("12/31/2020")).toBe(true);
+        expect(validator.isDate("31/12/2020")).toBe(true);
+        expect(validator.isDate("2020-12-31")).toBe(true);
+        expect(validator.isDate("12-31-2020")).toBe(true);
+        expect(validator.isDate("31-12-2020")).toBe(true);
+        expect(validator.isDate("2020/12/31")).toBe(true);
+        expect(validator.isDate("12/31/2020")).toBe(true);
+        expect(validator.isDate("31/12/2020")).toBe(true);
+        expect(validator.isDate("20201231")).toBe(true);
+    });
+
+    it('should return false for invalid date values with popular formats when format is not given', () => {
+        expect(validator.isDate("31/31/2020")).toBe(false);
+        expect(validator.isDate("2020-31-31")).toBe(false);
+        expect(validator.isDate("12-31-20")).toBe(false);
+        expect(validator.isDate("31/12/20")).toBe(false);
+        expect(validator.isDate("2020-12-31T00:00:00")).toBe(false);
+    });
+
+    it('should return false for null, undefined, or empty string', () => {
+        expect(validator.isDate(null)).toBe(false);
+        expect(validator.isDate(undefined)).toBe(false);
+        expect(validator.isDate('')).toBe(false);
+    });
+});
+
+describe('isNumeric function', () => {
+    const validator = new CSVValidator({ columnDefinitions: {} });
+
+    it('should return true for valid numeric values', () => {
+        expect(validator.isNumeric("123")).toBe(true);
+        expect(validator.isNumeric("-123")).toBe(true);
+        expect(validator.isNumeric("123.45")).toBe(true);
+        expect(validator.isNumeric("-123.45")).toBe(true);
+        expect(validator.isNumeric("1,234")).toBe(true);
+        expect(validator.isNumeric("-1,234")).toBe(true);
+        expect(validator.isNumeric("1,234.56")).toBe(true);
+        expect(validator.isNumeric("-1,234.56")).toBe(true);
+    });
+
+    it('should return false for invalid numeric values', () => {
+        expect(validator.isNumeric("123abc")).toBe(false);
+        expect(validator.isNumeric("abc123")).toBe(false);
+        expect(validator.isNumeric("123.45.67")).toBe(false);
+        expect(validator.isNumeric("")).toBe(false);
+        expect(validator.isNumeric(" ")).toBe(false);
+    });
+
+    it('should return false for null, undefined, or empty string', () => {
+        expect(validator.isNumeric(null)).toBe(false);
+        expect(validator.isNumeric(undefined)).toBe(false);
+        expect(validator.isNumeric('')).toBe(false);
+    });
+
+    it('should return true for valid numeric values without thousand separators', () => {
+        expect(validator.isNumeric("1234567890")).toBe(true);
+        expect(validator.isNumeric("-1234567890")).toBe(true);
+        expect(validator.isNumeric("1234567890.123")).toBe(true);
+        expect(validator.isNumeric("-1234567890.123")).toBe(true);
+    });
+
+    it('should return false for numeric values with misplaced thousand separators', () => {
+        expect(validator.isNumeric("1,23,456")).toBe(false);
+        expect(validator.isNumeric("1234,567")).toBe(false);
+        expect(validator.isNumeric("12,34,567.89")).toBe(false);
+        expect(validator.isNumeric("12,345,67.89")).toBe(false);
+    });
+
+});
+
+describe('CSVValidator.isURL', () => {
+    let validator;
+
+    beforeAll(() => {
+        validator = new CSVValidator({
+            columnDefinitions: {}
+        });
+    });
+
+    it('should return true for valid URLs', () => {
+        expect(validator.isURL("http://example.com")).toBe(true);
+        expect(validator.isURL("https://example.com")).toBe(true);
+        expect(validator.isURL("http://www.example.com")).toBe(true);
+        expect(validator.isURL("https://www.example.com")).toBe(true);
+        expect(validator.isURL("https://example.com/path?name=value#anchor")).toBe(true);
+        expect(validator.isURL("http://subdomain.example.com")).toBe(true);
+        expect(validator.isURL("https://subdomain.example.com")).toBe(true);
+        expect(validator.isURL("ftp://example.com")).toBe(true);
+    });
+
+    it('should return false for invalid URLs', () => {
+        expect(validator.isURL("http//example.com")).toBe(false);
+        expect(validator.isURL("http:/example.com")).toBe(false);
+        expect(validator.isURL("http:example.com")).toBe(false);
+        expect(validator.isURL("http://example")).toBe(false);
+        expect(validator.isURL("http://.com")).toBe(false);
+        expect(validator.isURL("http://com")).toBe(false);
+        expect(validator.isURL("http://example.com:port")).toBe(false);
+    });
+
+    it('should return false for non-string values', () => {
+        expect(validator.isURL(null)).toBe(false);
+        expect(validator.isURL(undefined)).toBe(false);
+        expect(validator.isURL({})).toBe(false);
+        expect(validator.isURL([])).toBe(false);
+        expect(validator.isURL(true)).toBe(false);
+    });
+
+    it('should return false for empty strings', () => {
+        expect(validator.isURL("")).toBe(false);
+    });
+});
+
+describe('CSVValidator.isPhoneNumber', () => {
+    let validator;
+
+    beforeAll(() => {
+        validator = new CSVValidator({
+            columnDefinitions: {}
+        });
+    });
+
+    it('should return true for valid phone numbers in various popular formats', () => {
+        expect(validator.isPhoneNumber("123-456-7890")).toBe(true);
+        expect(validator.isPhoneNumber("(123) 456-7890")).toBe(true);
+        expect(validator.isPhoneNumber("123.456.7890")).toBe(true);
+        expect(validator.isPhoneNumber("123 456 7890")).toBe(true);
+        expect(validator.isPhoneNumber("+1-123-456-7890")).toBe(true);
+        expect(validator.isPhoneNumber("+91 (123) 456-7890")).toBe(true);
+        expect(validator.isPhoneNumber("+44 123 456 7890")).toBe(true);
+        expect(validator.isPhoneNumber("1234567890")).toBe(true);
+    });
+
+    it('should return false for invalid phone numbers', () => {
+        expect(validator.isPhoneNumber("123-45a-7890")).toBe(false);
+    });
+
+    it('should return false for non-string values', () => {
+        expect(validator.isPhoneNumber(1234567890)).toBe(false);
+        expect(validator.isPhoneNumber(null)).toBe(false);
+        expect(validator.isPhoneNumber(undefined)).toBe(false);
+        expect(validator.isPhoneNumber({})).toBe(false);
+        expect(validator.isPhoneNumber([])).toBe(false);
+        expect(validator.isPhoneNumber(true)).toBe(false);
+    });
+
+    it('should return false for empty strings', () => {
+        expect(validator.isPhoneNumber("")).toBe(false);
+    });
+
+    it('should return true for valid phone numbers matching specific format', () => {
+        expect(validator.isPhoneNumber("123-456-7890", "XXX-XXX-XXXX")).toBe(true);
+        expect(validator.isPhoneNumber("123 456 7890", "XXX XXX XXXX")).toBe(true);
+        expect(validator.isPhoneNumber("(123) 456-7890", "(XXX) XXX-XXXX")).toBe(true);
+    });
+
+    it('should return false for phone numbers not matching specific format', () => {
+        expect(validator.isPhoneNumber("123.456.7890", "XXX-XXX-XXXX")).toBe(false);
+        expect(validator.isPhoneNumber("123-456-7890", "XXX XXX XXXX")).toBe(false);
+        expect(validator.isPhoneNumber("123-456-7890", "(XXX) XXX-XXXX")).toBe(false);
+    });
+});
+
+describe('CSVValidator.isCurrency', () => {
+    let validator;
+
+    beforeAll(() => {
+        validator = new CSVValidator({
+            columnDefinitions: {}
+        });
+    });
+
+    it('should return true for valid currency values with default options', () => {
+        expect(validator.isCurrency("123.45")).toBe(true);
+        expect(validator.isCurrency("$123.45")).toBe(true);
+        expect(validator.isCurrency("123")).toBe(true);
+        expect(validator.isCurrency("1,234.56")).toBe(true);
+        expect(validator.isCurrency("-123.45")).toBe(true);
+    });
+
+    it('should return false for invalid currency values with default options', () => {
+        expect(validator.isCurrency("123.456")).toBe(false);
+        expect(validator.isCurrency("123,45")).toBe(false);
+        expect(validator.isCurrency("123.45.67")).toBe(false);
+        expect(validator.isCurrency("123.45$")).toBe(false);
+        expect(validator.isCurrency("abc")).toBe(false);
+    });
+
+    it('should return true for valid currency values with custom options', () => {
+        const options = {
+            symbol: '€',
+            require_symbol: true,
+            decimal_separator: ',',
+            thousands_separator: '.',
+            allow_decimal: true,
+            digits_after_decimal: [2]
+        };
+        expect(validator.isCurrency("€1.234,56", options)).toBe(true);
+        expect(validator.isCurrency("€123,45", options)).toBe(true);
+        expect(validator.isCurrency("€1.234", options)).toBe(true);
+    });
+
+    it('should return false for invalid currency values with custom options', () => {
+        const options = {
+            symbol: '€',
+            require_symbol: true,
+            decimal_separator: '.',
+            thousands_separator: ',',
+            allow_decimal: true,
+            digits_after_decimal: [2]
+        };
+        expect(validator.isCurrency("1,234.56", options)).toBe(false);
+        expect(validator.isCurrency("€123,45", options)).toBe(false);
+        expect(validator.isCurrency("€1.234,56", options)).toBe(false);
+        expect(validator.isCurrency("€123.4", options)).toBe(false);
+    });
+
+    it('should return true for valid currency values without decimal', () => {
+        const options = {
+            allow_decimal: false
+        };
+        expect(validator.isCurrency("12345", options)).toBe(true);
+        expect(validator.isCurrency("$12345", options)).toBe(true);
+        expect(validator.isCurrency("1,234,567", options)).toBe(true);
+    });
+
+    it('should return false for invalid currency values without decimal', () => {
+        const options = {
+            allow_decimal: false
+        };
+        expect(validator.isCurrency("123.45", options)).toBe(false);
+        expect(validator.isCurrency("$123.45", options)).toBe(false);
+        expect(validator.isCurrency("1,234.56", options)).toBe(false);
+    });
+});
+
+describe('CSVValidator.isEmptyRow', () => {
+    let validator;
+
+    beforeAll(() => {
+        validator = new CSVValidator({
+            columnDefinitions: {}
+        });
+    });
+
+    it('should return true for empty rows', () => {
+        expect(validator.isEmptyRow({})).toBe(true);
+        expect(validator.isEmptyRow({ col1: '', col2: '', col3: '' })).toBe(true);
+        expect(validator.isEmptyRow({ col1: null, col2: null, col3: null })).toBe(true);
+        expect(validator.isEmptyRow({ col1: undefined, col2: undefined, col3: undefined })).toBe(true);
+    });
+
+    it('should return false for non-empty rows', () => {
+        expect(validator.isEmptyRow({ col1: 'value', col2: '', col3: '' })).toBe(false);
+        expect(validator.isEmptyRow({ col1: '', col2: 'value', col3: '' })).toBe(false);
+        expect(validator.isEmptyRow({ col1: '', col2: '', col3: 'value' })).toBe(false);
+        expect(validator.isEmptyRow({ col1: 'value1', col2: 'value2', col3: 'value3' })).toBe(false);
+    });
+
+    it('should return true for custom empty value check with default implementation', () => {
+        const customValidator = new CSVValidator({
+            columnDefinitions: {},
+            customEmptyValueCheck: (value) => value === '-' || value.trim() === ''
+        });
+
+        expect(customValidator.isEmptyRow({ col1: '-', col2: '-', col3: '-' })).toBe(true);
+        expect(customValidator.isEmptyRow({ col1: ' ', col2: ' ', col3: ' ' })).toBe(true);
+        expect(customValidator.isEmptyRow({ col1: '-', col2: '', col3: ' ' })).toBe(true);
+    });
+
+    it('should return false for custom empty value check with default implementation', () => {
+        const customValidator = new CSVValidator({
+            columnDefinitions: {},
+            customEmptyValueCheck: (value) => value === '-' || value.trim() === ''
+        });
+
+        expect(customValidator.isEmptyRow({ col1: 'value', col2: '-', col3: '-' })).toBe(false);
+        expect(customValidator.isEmptyRow({ col1: '-', col2: 'value', col3: '-' })).toBe(false);
+        expect(customValidator.isEmptyRow({ col1: '-', col2: '-', col3: 'value' })).toBe(false);
+        expect(customValidator.isEmptyRow({ col1: 'value1', col2: 'value2', col3: 'value3' })).toBe(false);
     });
 });

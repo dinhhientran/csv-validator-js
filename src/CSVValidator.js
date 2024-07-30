@@ -2,7 +2,7 @@
  * CSVValidator.js
  * A robust JavaScript library for validating CSV files with custom rules and error messages.
  *
- * @version 1.0.20
+ * @version 1.1.0
  * author: Hien Tran
  * license: MIT
  *
@@ -11,6 +11,10 @@
  * For detailed documentation and usage, visit the repository:
  * https://github.com/dinhhientran/csv-validator-js
  */
+
+import Papa from "papaparse";
+import {isEmail} from "validator";
+import moment from "moment/moment";
 
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
@@ -126,14 +130,7 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 const content = e.target.result;
-                const parseConfig = {
-                    header: true,
-                    skipEmptyLines: this.skipEmptyLines,
-                    complete: (results) => {
-                        this.validateCSV(results, callback);
-                    }
-                };
-                Papa.parse(content, parseConfig);
+                this.parseAndValidateCSVString(content, callback);
             };
             reader.readAsText(file);
         }
@@ -142,6 +139,7 @@
             const parseConfig = {
                 header: true,
                 skipEmptyLines: this.skipEmptyLines,
+                worker: true,
                 complete: (results) => {
                     this.validateCSV(results, callback);
                 }
@@ -218,7 +216,7 @@
 
             for (let i = 0; i < headers.length; i++) {
                 const header = headers[i];
-                const value = row[header].trim();
+                const value = row[header];
                 const definition = Object.values(this.columnDefinitions)[i];
                 const type = definition && definition.dataType;
                 const dateFormat = definition && definition.format;
@@ -287,7 +285,7 @@
             } else if (type === 'percentage') {
                 return this.isPercentage(value);
             } else if (type === 'email') {
-                return this.isEmail(value);
+                return isEmail(value);
             } else if (type === 'url') {
                 return this.isURL(value);
             } else if (type === 'phoneNumber') {
@@ -295,7 +293,7 @@
             } else if (type === 'currency') {
                 return this.isCurrency(value, dateFormat);
             } else if (type === 'number') {
-                return this.isNumber(value);
+                return this.isNumeric(value);
             } else if (type === 'string') {
                 return true; // No validation needed for string type
             }
@@ -303,41 +301,76 @@
         }
 
         isInteger(value) {
-            return value !== undefined && value !== null && value !== '' && !isNaN(value) && Number.isInteger(parseFloat(value));
-        }
-
-        isDecimal(value, decimalPlaces) {
             if (value === undefined || value === null || value === '' || isNaN(value)) {
                 return false;
             }
 
-            value = value.trim();
+            // Remove commas and trim spaces
+            value = value.replace(/,/g, '').trim();
 
-            // Allow comma as thousand separator and handle negative values
-            const regex = decimalPlaces !== null && decimalPlaces !== undefined
-                ? new RegExp(`^-?\\d{1,3}(,\\d{3})*(\\.\\d{1,${decimalPlaces}})?$`)
-                : /^-?\d{1,3}(,\d{3})*(\.\d+)?$/;
-            let result = regex.test(value.replace(/,/g, ''));
-            return result;
+            // Check if the value is an integer and does not contain any decimal point
+            return Number.isInteger(parseFloat(value)) && value.indexOf('.') === -1;
         }
 
         isBoolean(value) {
+            if (value === undefined || value === null || value === '') {
+                return false;
+            }
+
+            // Normalize the value to lower case for comparison
+            value = value.trim().toLowerCase();
+
             return value === 'true' || value === 'false';
         }
 
         isDate(value, dateFormats) {
-            if (!dateFormats) return false;
+            if (!value) return false;
+
+            if (!dateFormats) {
+                // Popular date formats
+                dateFormats = [
+                    'MM/DD/YYYY',
+                    'DD/MM/YYYY',
+                    'YYYY-MM-DD',
+                    'MM-DD-YYYY',
+                    'DD-MM-YYYY',
+                    'YYYY/MM/DD',
+                    'M/D/YYYY',
+                    'D/M/YYYY',
+                    'YYYYMMDD'
+                ];
+            }
+
             if (!Array.isArray(dateFormats)) {
                 dateFormats = [dateFormats];
             }
+
             return dateFormats.some(format => moment(value, format, true).isValid());
         }
 
         isDateTime(value, dateFormats) {
-            if (!dateFormats) return false;
+            if (!value) return false;
+
+            if (!dateFormats) {
+                // Popular datetime formats
+                dateFormats = [
+                    'MM/DD/YYYY HH:mm:ss',
+                    'DD/MM/YYYY HH:mm:ss',
+                    'YYYY-MM-DD HH:mm:ss',
+                    'MM-DD-YYYY HH:mm:ss',
+                    'DD-MM-YYYY HH:mm:ss',
+                    'YYYY/MM/DD HH:mm:ss',
+                    'M/D/YYYY H:m:s',
+                    'D/M/YYYY H:m:s',
+                    'YYYYMMDD HHmmss',
+                    'YYYY-MM-DDTHH:mm:ss' // ISO 8601 format
+                ];
+            }
+
             if (!Array.isArray(dateFormats)) {
                 dateFormats = [dateFormats];
             }
+
             return dateFormats.some(format => moment(value, format, true).isValid());
         }
 
@@ -346,31 +379,96 @@
             return regex.test(value);
         }
 
-        isEmail(value) {
-            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return regex.test(value);
-        }
-
         isURL(value) {
-            const regex = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/i;
-            return regex.test(value);
+            return typeof value === 'string' && isURL(value);
         }
 
-        isPhoneNumber(value, format) {
-            const regex = /^\d{3}-\d{3}-\d{4}$/;
-            return regex.test(value);
+        isNumeric(value) {
+            if (typeof value !== 'string') {
+                return false;
+            }
+
+            if (value == null || value == undefined || value.trim() == '') {
+                return false;
+            }
+
+            value = value.trim();
+
+            // Validate the placement of thousand separators using regex
+            const thousandSeparatorRegex = /^-?\d{1,3}(,\d{3})*(\.\d+)?$/;
+            if (!thousandSeparatorRegex.test(value)) {
+                // Also allow numbers without thousand separators
+                const noSeparatorRegex = /^-?\d+(\.\d+)?$/;
+                if (!noSeparatorRegex.test(value)) {
+                    return false;
+                }
+            }
+
+            // Remove commas from the value
+            const normalizedValue = value.replace(/,/g, '');
+
+            // Use the isNumeric function from the validator library
+            return isNumeric(normalizedValue);
         }
 
-        isCurrency(value, format) {
-            const regex = /^\d+(\.\d{2})?$/;
-            return regex.test(value);
-        }
+        isDecimal(value, decimalPlaces = null, allowThousandSeparator = false) {
+            if (value == null || value == undefined || value.trim() == '') {
+                return false;
+            }
 
-        isNumber(value) {
-            if (typeof value === 'string') {
+            value = value.trim();
+
+            if (allowThousandSeparator) {
                 value = value.replace(/,/g, '');
             }
-            return this.isInteger(value) || this.isDecimal(value, null);
+
+            if (decimalPlaces != null && decimalPlaces != undefined) {
+                return isDecimal(value, {force_decimal: true, decimal_digits: decimalPlaces});
+            } else {
+                return isDecimal(value);
+            }
+        }
+
+        isPhoneNumber(value, format = null) {
+            if (typeof value !== 'string') return false;
+
+            // If a specific format is provided, validate against that format
+            if (format) {
+                const regex = new RegExp(`^${format.replace(/X/g, '\\d').replace(/\(/g, '\\(').replace(/\)/g, '\\)').replace(/\-/g, '\\-').replace(/\s/g, '\\s').replace(/\./g, '\\.')}$`);
+                return regex.test(value);
+            }
+
+            // Comprehensive regex to match popular phone number formats
+            const regex = /^(\+?\d{1,3}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?[\d-.\s]{7,10}$/;
+            return regex.test(value);
+        }
+
+        isCurrency(value, options = {}) {
+            if (typeof value !== 'string') return false;
+
+            // Default options for currency validation
+            const defaultOptions = {
+                symbol: '$',
+                require_symbol: false,
+                allow_space_after_symbol: false,
+                symbol_after_digits: false,
+                allow_negatives: true,
+                parens_for_negatives: false,
+                negative_sign_before_digits: false,
+                negative_sign_after_digits: false,
+                allow_negative_sign_placeholder: false,
+                thousands_separator: ',',
+                decimal_separator: '.',
+                allow_decimal: true,
+                require_decimal: false,
+                digits_after_decimal: [2],
+                allow_space_after_digits: false
+            };
+
+            // Merge user options with default options
+            const mergedOptions = { ...defaultOptions, ...options };
+
+            return isCurrency(value, mergedOptions);
         }
 
         isEmptyRow(row) {
