@@ -19,6 +19,10 @@ A robust JavaScript library for validating CSV files with custom rules and error
 npm install csv-validator-js
 ```
 
+### Version 1.1.3
+
+Version 1.1.3 is now marked as a stable version.
+
 ### Basic Usage
 
 Define the rules for each column in the CSV file. In this basic example, no optional options are used.
