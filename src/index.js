@@ -2,7 +2,7 @@
  * CSVValidator.js
  * A robust JavaScript library for validating CSV files with custom rules and error messages.
  *
- * @version 1.1.0
+ * @version 1.1.2
  * author: Hien Tran
  * license: MIT
  *
@@ -25,8 +25,7 @@ class CSVValidator {
                     messages = {},
                     skipEmptyLines = true,
                     validateHeaderNames = true,
-                    customEmptyValueCheck = null, // New parameter
-                    errorMessageRowIndexStart = 2 // New parameter
+                    customEmptyValueCheck = null // New parameter
                 }) {
         this.columnDefinitions = columnDefinitions;
         this.expectedHeaderLength = Object.keys(columnDefinitions).length;
@@ -44,6 +43,7 @@ class CSVValidator {
             phoneNumber: '{header} is not a valid phone number',
             currency: '{header} is not a valid currency value',
             number: '{header} is not a valid number value',
+            maxLength: '{header} exceeds the maximum length of {maxLength} characters',
             ...defaultInvalidMessages
         };
         this.language = language;
@@ -54,7 +54,7 @@ class CSVValidator {
                 emptyRow: 'Row {row} is empty.',
                 headerLength: 'Header length mismatch. Expected {expected} headers but got {actual}.',
                 valid: 'CSV file is valid.',
-                invalidHeader: 'Invalid header name {header} at column {column}.',
+                invalidHeader: 'Invalid header name: {header} at column {column}.',
                 ...this.defaultInvalidMessages
             },
             vi: {
@@ -97,7 +97,6 @@ class CSVValidator {
         this.skipEmptyLines = skipEmptyLines;
         this.validateHeaderNames = validateHeaderNames;
         this.customEmptyValueCheck = customEmptyValueCheck; // Set the custom blank value check function
-        this.errorMessageRowIndexStart = errorMessageRowIndexStart; // Set the starting index for row numbers in error messages
         this.seenValues = {};
     }
 
@@ -139,20 +138,26 @@ class CSVValidator {
 
         const headerValidationResult = this.validateHeaderLength(meta.fields);
         if (!headerValidationResult.isValid) {
-            callback(false, headerValidationResult.errors.map((msg) => `Row ${this.errorMessageRowIndexStart - 1}: ${msg}`)); // Assuming header errors belong to the row before the data starts
+            callback(false, headerValidationResult.errors.reduce((acc, msg) => {
+                acc[0] = acc[0] || [];
+                acc[0].push(msg);
+                return acc;
+            }, {}));
             return;
         }
 
-        let rowErrors = [];
+        let rowErrors = {};
         for (let i = 0; i < rows.length; i++) {
             if (this.isEmptyRow(rows[i])) {
-                rowErrors.push(this.getMessage('emptyRow', { row: i + this.errorMessageRowIndexStart }));
+                rowErrors[i + 1] = rowErrors[i + 1] || [];
+                rowErrors[i + 1].push(this.getMessage('emptyRow', { row: i + 1 }));
                 continue;
             }
 
-            const rowValidationResult = this.validateRow(rows[i], i + this.errorMessageRowIndexStart, meta.fields);
+            const rowValidationResult = this.validateRow(rows[i], i + 1, meta.fields);
             if (!rowValidationResult.isValid) {
-                rowErrors = rowErrors.concat(rowValidationResult.errors);
+                rowErrors[i + 1] = rowErrors[i + 1] || [];
+                rowErrors[i + 1] = rowErrors[i + 1].concat(rowValidationResult.errors);
             }
         }
 
@@ -162,16 +167,19 @@ class CSVValidator {
                 for (let value in this.seenValues[column]) {
                     if (this.seenValues[column].hasOwnProperty(value) && this.seenValues[column][value].length > 1) {
                         let duplicateRows = this.seenValues[column][value].map(row => row).join(', ');
-                        rowErrors.push(this.getMessage('duplicate', { value: value, rows: duplicateRows, column: column }));
+                        this.seenValues[column][value].forEach(rowIndex => {
+                            rowErrors[rowIndex] = rowErrors[rowIndex] || [];
+                            rowErrors[rowIndex].push(this.getMessage('duplicate', { value: value, rows: duplicateRows, column: column }));
+                        });
                     }
                 }
             }
         }
 
-        if (rowErrors.length > 0) {
+        if (Object.keys(rowErrors).length > 0) {
             callback(false, rowErrors);
         } else {
-            callback(true, [this.getMessage('valid')]);
+            callback(true, { 0: [this.getMessage('valid')] });
         }
     }
 
@@ -212,14 +220,21 @@ class CSVValidator {
             const customErrors = (definition && definition.errors) || {};
             const customRequiredValidator = (definition && definition.customRequiredValidator) || this.globalCustomValidators.required;
             const customValidator = definition && definition.customValidator;
+            const maxLength = definition && definition.maxLength;
 
             // Check if value is blank
             if (this.isBlankValue(value)) {
                 if (required) {
                     isValid = false;
-                    errors.push(`Row ${rowIndex}: ${customErrors.required || this.getMessage('required', { row: rowIndex, column: i + 1, header })}`);
+                    errors.push(customErrors.required || this.getMessage('required', { row: rowIndex, column: i + 1, header }));
                 }
                 continue; // Skip further validation if value is blank
+            }
+
+            // Check for max length if it's a string
+            if (type === 'string' && maxLength && value.length > maxLength) {
+                isValid = false;
+                errors.push(customErrors.invalid || this.getMessage('maxLength', { header, maxLength }));
             }
 
             // Track duplicates if validation is enabled for this column
@@ -236,10 +251,10 @@ class CSVValidator {
             // Use custom validator for this column if provided
             if (customValidator && !customValidator(value)) {
                 isValid = false;
-                errors.push(`Row ${rowIndex}: ${customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header })}`);
+                errors.push(customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header }));
             } else if (!customValidator && !this.validateValue(value, type, dateFormat, decimalPlaces)) {
                 isValid = false;
-                errors.push(`Row ${rowIndex}: ${customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header, format: Array.isArray(dateFormat) ? dateFormat.join(', ') : dateFormat })}`);
+                errors.push(customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header, format: Array.isArray(dateFormat) ? dateFormat.join(', ') : dateFormat }));
             }
         }
 

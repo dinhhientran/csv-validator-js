@@ -15,67 +15,66 @@ describe('CSVValidator', () => {
             required: true,
             errors: {
                 required: "Invoice Amount is required.",
-                invalid: "Invalid currency value"
+                invalid: "Invalid currency value for Invoice Amount."
             }
         },
         'Invoice Date': {
             dataType: 'date',
             format: 'MM/DD/YYYY',
             errors: {
-                invalid: "Invalid date value"
+                invalid: "Invalid date value for Invoice Date."
             }
         },
         'Due Date': {
             dataType: 'date',
             format: 'MM/DD/YYYY',
             errors: {
-                invalid: "Invalid date value"
+                invalid: "Invalid date value for Due Date."
             }
         },
         'Customer Email': {
             dataType: 'email',
             errors: {
-                invalid: "Invalid email address"
+                invalid: "Invalid email address for Customer Email."
             }
         },
         'Customer Website': {
             dataType: 'url',
             errors: {
-                invalid: "Invalid URL"
+                invalid: "Invalid URL for Customer Website."
             }
         },
         'Customer Phone': {
             dataType: 'phoneNumber',
             errors: {
-                invalid: "Invalid phone number"
+                invalid: "Invalid phone number for Customer Phone."
             }
         },
         'Discount Rate': {
             dataType: 'percentage',
             errors: {
-                invalid: "Invalid percentage value"
+                invalid: "Invalid percentage value for Discount Rate."
             }
         },
         'Tax Amount': {
             dataType: 'decimal',
             decimalPlaces: 2,
             errors: {
-                invalid: "Invalid decimal value"
+                invalid: "Invalid decimal value for Tax Amount."
             }
         },
         'Transaction Date': {
             dataType: 'datetime',
             format: 'MM/DD/YYYY HH:mm:ss',
             errors: {
-                invalid: "Invalid datetime value"
+                invalid: "Invalid datetime value for Transaction Date."
             }
         }
     };
 
     const validator = new CSVValidator({
         columnDefinitions: columnDefinitions,
-        validateHeaderNames: false,
-        errorMessageRowIndexStart: 2 // Default value, you can remove this if it's always 2
+        validateHeaderNames: false
     });
 
     it('validates CSV content as a string with multiple errors', () => {
@@ -86,17 +85,19 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 `;
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
-            console.log(result)
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 3: Invoice Number is required.",
-                "Row 3: Invalid currency value",
-                "Row 3: Invalid date value",
-                "Row 3: Invalid date value",
-                "Row 3: Invalid email address",
-                "Row 3: Invalid decimal value",
-                "Row 3: Invalid datetime value"
-            ]));
+
+            expect(result).toEqual({
+                2: [
+                    "Invoice Number is required.",
+                    "Invalid currency value for Invoice Amount.",
+                    "Invalid date value for Invoice Date.",
+                    "Invalid date value for Due Date.",
+                    "Invalid email address for Customer Email.",
+                    "Invalid decimal value for Tax Amount.",
+                    "Invalid datetime value for Transaction Date."
+                ]
+            });
         });
     });
 
@@ -109,7 +110,7 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(true);
-            expect(result).toEqual(["CSV file is valid."]);
+            expect(result).toEqual({0: ["CSV file is valid."]});
         });
     });
 
@@ -121,9 +122,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invoice Number is required."
-            ]));
+            expect(result).toEqual({
+                1: ["Invoice Number is required."]
+            });
         });
     });
 
@@ -135,9 +136,9 @@ abc,100.00,,,,,,,,
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invoice Number must be an integer."
-            ]));
+            expect(result).toEqual({
+                1: ["Invoice Number must be an integer."]
+            });
         });
     });
 
@@ -149,9 +150,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invalid decimal value"
-            ]));
+            expect(result).toEqual({
+                1: ["Invalid decimal value for Tax Amount."]
+            });
         });
     });
 
@@ -163,9 +164,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invalid email address"
-            ]));
+            expect(result).toEqual({
+                1: ["Invalid email address for Customer Email."]
+            });
         });
     });
 
@@ -177,9 +178,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invalid URL"
-            ]));
+            expect(result).toEqual({
+                1: ["Invalid URL for Customer Website."]
+            });
         });
     });
 
@@ -191,9 +192,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invalid phone number"
-            ]));
+            expect(result).toEqual({
+                1: ["Invalid phone number for Customer Phone."]
+            });
         });
     });
 
@@ -205,9 +206,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invalid percentage value"
-            ]));
+            expect(result).toEqual({
+                1: ["Invalid percentage value for Discount Rate."]
+            });
         });
     });
 
@@ -219,9 +220,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invalid date value"
-            ]));
+            expect(result).toEqual({
+                1: ["Invalid date value for Invoice Date."]
+            });
         });
     });
 
@@ -233,9 +234,9 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 2: Invalid datetime value"
-            ]));
+            expect(result).toEqual({
+                1: ["Invalid datetime value for Transaction Date."]
+            });
         });
     });
 
@@ -266,9 +267,10 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Duplicate value \"123\" found in rows: 2, 3 for column: Invoice Number."
-            ]));
+            expect(result).toEqual({
+                1: ["Duplicate value \"123\" found in rows: 1, 2 for column: Invoice Number."],
+                2: ["Duplicate value \"123\" found in rows: 1, 2 for column: Invoice Number."]
+            });
         });
     });
 
@@ -400,7 +402,7 @@ Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Customer Webs
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(true);
-            expect(result).toEqual(["CSV file is valid."]);
+            expect(result).toEqual({0: ["CSV file is valid."]});
         });
     });
 
@@ -417,9 +419,9 @@ Invalid Invoice Number,Invoice Amount,Invoice Date,Due Date,Customer Email,Custo
 
         validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
             expect(isValid).toBe(false);
-            expect(result).toEqual(expect.arrayContaining([
-                "Row 1: Invalid header name Invalid Invoice Number at column 1."
-            ]));
+            expect(result).toEqual({
+                0: ["Invalid header name: Invalid Invoice Number at column 1."]
+            });
         });
     });
 });

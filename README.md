@@ -27,14 +27,14 @@ Define the rules for each column in the CSV file. In this basic example, no opti
 import CSVValidator from 'csv-validator-js';
 
 const columnDefinitions = {
-'Invoice Number': { dataType: 'integer', required: true },
-'Invoice Amount': { dataType: 'decimal', required: true },
-'Invoice Date': { dataType: 'date' },
-'Due Date': { dataType: 'date' }
+    'Invoice Number': { dataType: 'integer', required: true },
+    'Invoice Amount': { dataType: 'decimal', required: true },
+    'Invoice Date': { dataType: 'date' },
+    'Due Date': { dataType: 'date' }
 };
 
 const validator = new CSVValidator({
-columnDefinitions
+    columnDefinitions
 });
 
 const csvContent = `
@@ -52,22 +52,103 @@ validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
 });
 ```
 
+### Result Returned
+
+The result returned by the `CSVValidator` after validation is an object. The keys are row indices (starting from 0 for the header row) and the values are arrays of error messages for each row. This structure allows you to easily identify which rows have validation errors and what those errors are.
+
+#### Example Result
+
+```json
+{
+  "0": ["Invalid header name Invalid Invoice Number at column 1."],
+  "2": [
+    "Invoice Number is required.",
+    "Invalid currency value",
+    "Invalid date value",
+    "Invalid date value",
+    "Invalid email address",
+    "Invalid decimal value",
+    "Invalid datetime value"
+  ],
+  "3": [
+    "Invoice Number must be an integer.",
+    "Invalid percentage value",
+    "Invalid decimal value"
+  ]
+}
+```
+
+### Error Messages
+
+Each error message is descriptive and points to the specific issue in the CSV file. The possible error messages include:
+
+- `Missing required value at row {row}, column {column} ({header}).`
+- `Duplicate value "{value}" found in rows: {rows} for column: {column}.`
+- `Row {row} is empty.`
+- `Header length mismatch. Expected {expected} headers but got {actual}.`
+- `CSV file is valid.`
+- `Invalid header name {header} at column {column}.`
+- `Invalid {dataType} value at row {row}, column {column} ({header}).`
+
+#### Custom Error Messages
+
+You can also define custom error messages for each column in the `columnDefinitions`. The custom error messages will include the header name and provide a clear description of the validation error.
+
+
 ### Data Types
 
 Defines the types of data each column in the CSV file can hold.
 
-- **integer**: Whole numbers without decimal points.
-- **decimal**: Numbers with decimal points. Optionally specify the number of decimal places and allow thousand separators.
-- **boolean**: True or false values.
-- **date**: Date values. Optionally specify the date format.
-- **datetime**: Date and time values. Optionally specify the date-time format.
-- **string**: Text values.
-- **percentage**: Percentage values.
-- **email**: Email addresses.
-- **url**: URL addresses.
-- **phoneNumber**: Phone numbers. Optionally specify the format.
-- **currency**: Currency values.
-- **number**: General numeric values. Optionally allow thousand separators.
+## Data Types
+
+### number
+General numeric values. Optionally allow thousand separators.
+- Valid examples: `123`, `1,234.56`, `-1234`
+
+### integer
+Whole numbers without decimal points.
+- Valid examples: `123`, `-1234`
+
+### decimal
+Numbers with decimal points. Optionally specify the number of decimal places and allow thousand separators.
+- Valid examples: `123.45`, `1,234.56`, `-1234.56`
+
+### boolean
+True or false values.
+- Valid examples: `true`, `false`, `TRUE`, `FALSE`
+
+### date
+Date values. Optionally specify the date format.
+- Valid examples: `12/31/2020`, `31-12-2020`, `2020-12-31`
+
+### datetime
+Date and time values. Optionally specify the date-time format.
+- Valid examples: `12/31/2020 14:30:00`, `31-12-2020 14:30:00`, `2020-12-31T14:30:00`
+
+### string
+Text values.
+- Valid examples: `Hello`, `123`, `abc123`
+
+### percentage
+Percentage values.
+- Valid examples: `10%`, `100%`, `50.5%`
+
+### email
+Email addresses.
+- Valid examples: `test@example.com`, `user.name+tag+sorting@example.com`
+
+### url
+URL addresses.
+- Valid examples: `http://example.com`, `https://www.example.com`
+
+### phoneNumber
+Phone numbers. Optionally specify the format.
+- Valid examples: `123-456-7890`, `(123) 456-7890`, `+1-123-456-7890`
+
+### currency
+Currency values.
+- Valid examples: `$123.45`, `£123.45`, `€123.45`
+
 
 Example of defining columns with different data types:
 
@@ -224,55 +305,6 @@ A function to check if a value is considered empty. Default is null.
 Example:
 ```javascript
 const customEmptyValueCheck = (value) => { return value === ''; };
-```
-
-### errorMessageRowIndexStart (Optional, default: 2)
-
-This option specifies the starting index for row numbers in error messages. By default, the value is set to 2, which assumes that the first row of the CSV file contains headers and the data rows start from the second line. Adjusting this value can help match the row numbers in error messages to those in your actual CSV file.
-
-#### Example
-
-Consider the following CSV content:
-
-```csv
-Invoice Number,Invoice Amount,Invoice Date,Due Date
-123,1000.00,12/31/2020,01/31/2021
-124,invalid-amount,01/01/2021,invalid-date
-```
-
-With errorMessageRowIndexStart set to 2 (the default), the error messages will use row numbers starting from 2:
-
-```javascript
-const validator = new CSVValidator({
-    columnDefinitions: {
-        'Invoice Number': { dataType: 'integer', required: true },
-        'Invoice Amount': { dataType: 'decimal', required: true },
-        'Invoice Date': { dataType: 'date', format: 'MM/DD/YYYY' },
-        'Due Date': { dataType: 'date', format: 'MM/DD/YYYY' }
-    },
-    errorMessageRowIndexStart: 2
-});
-
-const csvContent = `
-Invoice Number,Invoice Amount,Invoice Date,Due Date
-123,1000.00,12/31/2020,01/31/2021
-124,invalid-amount,01/01/2021,invalid-date
-`;
-
-validator.parseAndValidateCSVString(csvContent, (isValid, result) => {
-    if (!isValid) {
-        console.error('CSV file is invalid:', result);
-    }
-});
-```
-
-The error messages will be:
-
-```
-[
-    "Row 3: Invalid decimal value"
-    "Row 3: Invalid date value (expected formats: MM/DD/YYYY)"
-]
 ```
 
 ## Advanced Usage
@@ -463,20 +495,6 @@ validator.parseAndValidateCSVFile(csvContent, function(isValid, result) {
         });
     }
 });
-```
-
-In the example above, the `result` parameter will contain an array of error messages if the CSV file is invalid. You can iterate over this array to inspect and handle each validation error.
-
-result:
-
-```
-[
-  "Row 2: Invoice Number is required.",
-  "Row 2: Invalid value at row 2, column 2 (InvoiceAmount). Expected type currency.",
-  "Row 2: Invalid email address.",
-  "Row 2: Invalid URL.",
-  "Row 2: Invalid value at row 2, column 11 (TransactionDate). Expected type datetime."
-]
 ```
 
 ## License
