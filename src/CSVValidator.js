@@ -2,7 +2,7 @@
  * CSVValidator.js
  * A robust JavaScript library for validating CSV files with custom rules and error messages.
  *
- * @version 1.1.2
+ * @version 1.1.4
  * author: Hien Tran
  * license: MIT
  *
@@ -56,7 +56,7 @@
                 ...defaultInvalidMessages
             };
             this.language = language;
-            this.messages = {
+            const defaultMessages = {
                 en: {
                     required: 'Missing required value at row {row}, column {column} ({header}).',
                     duplicate: 'Duplicate value "{value}" found in rows: {rows} for column: {column}.',
@@ -103,6 +103,14 @@
                     ...this.defaultInvalidMessages
                 }
             };
+
+            // Merge provided messages with the default messages for the specified language
+            this.messages = {
+                ...defaultMessages[language],
+                ...this.defaultInvalidMessages,
+                ...messages[language]
+            };
+
             this.skipEmptyLines = skipEmptyLines;
             this.validateHeaderNames = validateHeaderNames;
             this.customEmptyValueCheck = customEmptyValueCheck; // Set the custom blank value check function
@@ -111,7 +119,7 @@
 
         getMessage(key, replacements) {
             replacements = replacements || {};
-            let message = this.messages[this.language][key] || this.messages['en'][key] || key;
+            let message = this.messages[key] || this.messages[this.language][key] || this.messages['en'][key] || key; // Adjusted line
             for (let placeholder in replacements) {
                 if (replacements.hasOwnProperty(placeholder)) {
                     message = message.replace('{' + placeholder + '}', replacements[placeholder]);
@@ -227,7 +235,6 @@
                 const required = definition && definition.required;
                 const validateDuplicates = definition && definition.validateDuplicates;
                 const customErrors = (definition && definition.errors) || {};
-                const customRequiredValidator = (definition && definition.customRequiredValidator) || this.globalCustomValidators.required;
                 const customValidator = definition && definition.customValidator;
                 const maxLength = definition && definition.maxLength;
 
@@ -295,7 +302,7 @@
             } else if (type === 'percentage') {
                 return this.isPercentage(value);
             } else if (type === 'email') {
-                return isEmail(value);
+                return validator.isEmail(value);
             } else if (type === 'url') {
                 return this.isURL(value);
             } else if (type === 'phoneNumber') {
@@ -390,7 +397,7 @@
         }
 
         isURL(value) {
-            return typeof value === 'string' && isURL(value);
+            return typeof value === 'string' && validator.isURL(value);
         }
 
         isNumeric(value) {
@@ -418,7 +425,7 @@
             const normalizedValue = value.replace(/,/g, '');
 
             // Use the isNumeric function from the validator library
-            return isNumeric(normalizedValue);
+            return validator.isNumeric(normalizedValue);
         }
 
         isDecimal(value, decimalPlaces = null, allowThousandSeparator = false) {
@@ -433,9 +440,9 @@
             }
 
             if (decimalPlaces != null && decimalPlaces != undefined) {
-                return isDecimal(value, {force_decimal: true, decimal_digits: decimalPlaces});
+                return validator.isDecimal(value, {force_decimal: true, decimal_digits: decimalPlaces});
             } else {
-                return isDecimal(value);
+                return validator.isDecimal(value);
             }
         }
 
@@ -478,7 +485,7 @@
             // Merge user options with default options
             const mergedOptions = { ...defaultOptions, ...options };
 
-            return isCurrency(value, mergedOptions);
+            return validator.isCurrency(value, mergedOptions);
         }
 
         isEmptyRow(row) {

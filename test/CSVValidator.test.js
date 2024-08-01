@@ -1,4 +1,4 @@
-const CSVValidator = require('../src/index').default; // Adjust the path as needed
+const CSVValidator = require('../dist/index'); // Adjust the path as needed
 
 describe('CSVValidator', () => {
     const columnDefinitions = {
@@ -383,8 +383,6 @@ Finance Reference Number,Policy ID,Supplier Name,Supplier Reference Number,Suppl
             isValid = valid;
             result = res;
         });
-
-        console.log(result);
 
         expect(isValid).toBe(true);
     });
@@ -801,4 +799,277 @@ describe('CSVValidator.isEmptyRow', () => {
         expect(customValidator.isEmptyRow({ col1: '-', col2: '-', col3: 'value' })).toBe(false);
         expect(customValidator.isEmptyRow({ col1: 'value1', col2: 'value2', col3: 'value3' })).toBe(false);
     });
+});
+
+describe('CSVValidator Message Overwriting with CSV Input', () => {
+
+    it('should validate CSV and return correct required message in English', (done) => {
+        const csv = `Header1,Header2
+        ,TestValue`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: {
+                Header1: { dataType: 'string', required: true },
+                Header2: { dataType: 'string' }
+            },
+            language: 'en'
+        });
+
+        // Parse and validate CSV string
+        validator.parseAndValidateCSVString(csv, (isValid, errors) => {
+            const messagesList = Object.values(errors).flat();
+            expect(messagesList).toEqual([
+                'Missing required value at row 1, column 1 (Header1).'
+            ]);
+            done();
+        });
+    });
+
+    it('should validate CSV and return custom required message in English', (done) => {
+        const csv = `Header1,Header2
+        ,TestValue`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: {
+                Header1: { dataType: 'string', required: true },
+                Header2: { dataType: 'string' }
+            },
+            language: 'en',
+            messages: {
+                en: {
+                    required: 'Custom required message in English.'
+                }
+            }
+        });
+
+        // Parse and validate CSV string
+        validator.parseAndValidateCSVString(csv, (isValid, errors) => {
+            const messagesList = Object.values(errors).flat();
+            expect(messagesList).toEqual([
+                'Custom required message in English.'
+            ]);
+            done();
+        });
+    });
+
+    it('should validate CSV and return correct required message in Vietnamese', (done) => {
+        const csv = `Header1,Header2
+        ,TestValue`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: {
+                Header1: { dataType: 'string', required: true },
+                Header2: { dataType: 'string' }
+            },
+            language: 'vi'
+        });
+
+        // Parse and validate CSV string
+        validator.parseAndValidateCSVString(csv, (isValid, errors) => {
+            const messagesList = Object.values(errors).flat();
+            expect(messagesList).toEqual([
+                'Cần nhập giá trị ở hàng 1, cột 1 (Header1).'
+            ]);
+            done();
+        });
+    });
+
+    it('should validate CSV and return custom required message in Vietnamese', (done) => {
+        const csv = `Header1,Header2
+        ,TestValue`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: {
+                Header1: { dataType: 'string', required: true },
+                Header2: { dataType: 'string' }
+            },
+            language: 'vi',
+            messages: {
+                vi: {
+                    required: 'Tin nhắn yêu cầu tùy chỉnh bằng tiếng Việt.'
+                }
+            }
+        });
+
+        // Parse and validate CSV string
+        validator.parseAndValidateCSVString(csv, (isValid, errors) => {
+            const messagesList = Object.values(errors).flat();
+            expect(messagesList).toEqual([
+                'Tin nhắn yêu cầu tùy chỉnh bằng tiếng Việt.'
+            ]);
+            done();
+        });
+    });
+
+    it('should validate CSV and return correct required message in Spanish', (done) => {
+        const csv = `Header1,Header2
+        ,TestValue`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: {
+                Header1: { dataType: 'string', required: true },
+                Header2: { dataType: 'string' }
+            },
+            language: 'es'
+        });
+
+        // Parse and validate CSV string
+        validator.parseAndValidateCSVString(csv, (isValid, errors) => {
+            const messagesList = Object.values(errors).flat();
+            expect(messagesList).toEqual([
+                'Falta el valor requerido en la fila 1, columna 1 (Header1).'
+            ]);
+            done();
+        });
+    });
+
+    it('should validate CSV and return custom required message in Spanish', (done) => {
+        const csv = `Header1,Header2
+        ,TestValue`;
+
+        const validator = new CSVValidator({
+            columnDefinitions: {
+                Header1: { dataType: 'string', required: true },
+                Header2: { dataType: 'string' }
+            },
+            language: 'es',
+            messages: {
+                es: {
+                    required: 'Mensaje requerido personalizado en español.'
+                }
+            }
+        });
+
+        // Parse and validate CSV string
+        validator.parseAndValidateCSVString(csv, (isValid, errors) => {
+            const messagesList = Object.values(errors).flat();
+            expect(messagesList).toEqual([
+                'Mensaje requerido personalizado en español.'
+            ]);
+            done();
+        });
+    });
+});
+
+
+describe('CSVValidator Custom Validators', () => {
+
+    // Custom Integer Validator
+    const customIntegerValidator = (value) => {
+        return Number.isInteger(parseFloat(value)) && parseFloat(value) >= 0;
+    };
+
+    test('should validate integers correctly with custom validator', (done) => {
+        const csvValidator = new CSVValidator({
+            columnDefinitions: {
+                id: { dataType: 'integer', customValidator: customIntegerValidator, required: true },
+                name: { dataType: 'string', required: true }
+            }
+        });
+
+        const csvData = `id,name
+5,John
+-3,Doe
+hello,Smith
+,name`;
+
+        csvValidator.parseAndValidateCSVString(csvData, (isValid, errors) => {
+            expect(isValid).toBe(false);
+            expect(errors).toEqual(expect.objectContaining({
+                '2': expect.arrayContaining([expect.stringContaining('id is not a valid integer value')]),
+                '3': expect.arrayContaining([expect.stringContaining('id is not a valid integer value')]),
+                '4': expect.arrayContaining([expect.stringContaining('Missing required value at row 4, column 1 (id).')]),
+            }));
+            done();
+        });
+    });
+
+    // Custom Email Validator
+    const customEmailValidator = (value) => {
+        return value.includes('@') && value.endsWith('.com');
+    };
+
+    test('should validate emails correctly with custom validator', (done) => {
+        const csvValidator = new CSVValidator({
+            columnDefinitions: {
+                email: { dataType: 'email', customValidator: customEmailValidator, required: true },
+                name: { dataType: 'string', required: true }
+            }
+        });
+
+        const csvData = `email,name
+test@gmail.com,John
+user@domain.com,Doe
+user@domain.org,Smith
+,name`;
+
+        csvValidator.parseAndValidateCSVString(csvData, (isValid, errors) => {
+            expect(isValid).toBe(false);
+            expect(errors).toEqual(expect.objectContaining({
+                '3': expect.arrayContaining([expect.stringContaining('is not a valid email address')]),
+                '4': expect.arrayContaining([expect.stringContaining('Missing required value at row 4, column 1 (email).')]),
+            }));
+            done();
+        });
+    });
+
+    // Custom Date Validator
+    const customDateValidator = (value) => {
+        return /^\d{4}-\d{2}-\d{2}$/.test(value);
+    };
+
+    test('should validate dates correctly with custom validator', (done) => {
+        const csvValidator = new CSVValidator({
+            columnDefinitions: {
+                birthdate: { dataType: 'date', customValidator: customDateValidator, required: true },
+                name: { dataType: 'string', required: true }
+            }
+        });
+
+        const csvData = `birthdate,name
+2024-08-01,John
+01/08/2024,Doe
+2024-13-01,Smith
+,name`;
+
+        csvValidator.parseAndValidateCSVString(csvData, (isValid, errors) => {
+            expect(isValid).toBe(false);
+            expect(errors).toEqual(expect.objectContaining({
+                '2': expect.arrayContaining([expect.stringContaining('is not a valid date value')]),
+                '4': expect.arrayContaining([expect.stringContaining('Missing required value at row 4, column 1 (birthdate).')]),
+            }));
+            done();
+        });
+    });
+
+    // Custom Phone Number Validator
+    const customPhoneNumberValidator = (value) => {
+        const regex = /^\(\d{3}\) \d{3}-\d{4}$/;
+        return regex.test(value);
+    };
+
+    test('should validate phone numbers correctly with custom validator', (done) => {
+        const csvValidator = new CSVValidator({
+            columnDefinitions: {
+                phone: { dataType: 'phoneNumber', customValidator: customPhoneNumberValidator, required: true },
+                name: { dataType: 'string', required: true }
+            }
+        });
+
+        const csvData = `phone,name
+(123) 456-7890,John
+123-456-7890,Doe
+(123) 456-789,Smith
+,name`;
+
+        csvValidator.parseAndValidateCSVString(csvData, (isValid, errors) => {
+            expect(isValid).toBe(false);
+            expect(errors).toEqual(expect.objectContaining({
+                '2': expect.arrayContaining([expect.stringContaining('is not a valid phone number')]),
+                '4': expect.arrayContaining([expect.stringContaining('Missing required value at row 4, column 1 (phone).')]),
+            }));
+            done();
+        });
+    });
+
 });
