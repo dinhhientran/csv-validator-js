@@ -22,6 +22,10 @@ npm install csv-validator-js
 
 Version 1.1.5 is now marked as a stable version.
 
+### Playground
+
+https://csvvalidatorjs.codeutility.io
+
 ### Basic Usage
 
 Define the rules for each column in the CSV file. In this basic example, no optional options are used.

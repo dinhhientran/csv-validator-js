@@ -1,6 +1,6 @@
 {
   "name": "csv-validator-js",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "A robust JavaScript library for validating CSV files with custom rules and error messages.",
   "main": "dist/index.js",
   "scripts": {
@@ -42,7 +42,7 @@
   "bugs": {
     "url": "https://github.com/dinhhientran/csv-validator-js/issues"
   },
-  "homepage": "https://csvvalidatorjs.codeutility.io/",
+  "homepage": "https://csvvalidatorjs.codeutility.io",
   "directories": {
     "doc": "docs",
     "test": "test"
