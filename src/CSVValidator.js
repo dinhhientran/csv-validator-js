@@ -2,7 +2,7 @@
  * CSVValidator.js
  * A robust JavaScript library for validating CSV files with custom rules and error messages.
  *
- * @version 1.1.4
+ * @version 1.1.5
  * author: Hien Tran
  * license: MIT
  *
@@ -43,8 +43,8 @@
                 integer: '{header} is not a valid integer value',
                 decimal: '{header} is not a valid decimal value',
                 boolean: '{header} is not a valid boolean value',
-                date: '{header} is not a valid date value (expected formats: {format})',
-                datetime: '{header} is not a valid datetime value (expected formats: {format})',
+                date: '{header} is not a valid date value',
+                datetime: '{header} is not a valid datetime value',
                 string: '{header} is not a valid string value',
                 percentage: '{header} is not a valid percentage value',
                 email: '{header} is not a valid email address',
@@ -53,6 +53,8 @@
                 currency: '{header} is not a valid currency value',
                 number: '{header} is not a valid number value',
                 maxLength: '{header} exceeds the maximum length of {maxLength} characters',
+                dateWithFormat: '{header} is not a valid date value (expected formats: {format})', // New message
+                datetimeWithFormat: '{header} is not a valid datetime value (expected formats: {format})', // New message
                 ...defaultInvalidMessages
             };
             this.language = language;
@@ -196,7 +198,7 @@
             if (Object.keys(rowErrors).length > 0) {
                 callback(false, rowErrors);
             } else {
-                callback(true, { 0: [this.getMessage('valid')] });
+                callback(true, {});
             }
         }
 
@@ -211,6 +213,7 @@
 
             if (this.validateHeaderNames) {
                 headers.forEach((header, index) => {
+                    header = header.trim();
                     if (!this.columnDefinitions[header]) {
                         isValid = false;
                         errors.push(this.getMessage('invalidHeader', { header, column: index + 1 }));
@@ -269,8 +272,18 @@
                     isValid = false;
                     errors.push(customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header }));
                 } else if (!customValidator && !this.validateValue(value, type, dateFormat, decimalPlaces)) {
+                    let errorMessage;
+                    if (type === 'date' || type === 'datetime') {
+                        if (dateFormat) {
+                            errorMessage = this.getMessage(type + 'WithFormat', { row: rowIndex, column: i + 1, header, format: Array.isArray(dateFormat) ? dateFormat.join(', ') : dateFormat });
+                        } else {
+                            errorMessage = this.getMessage(type, { row: rowIndex, column: i + 1, header });
+                        }
+                    } else {
+                        errorMessage = this.getMessage(type, { row: rowIndex, column: i + 1, header, format: dateFormat });
+                    }
                     isValid = false;
-                    errors.push(customErrors.invalid || this.getMessage(type, { row: rowIndex, column: i + 1, header, format: Array.isArray(dateFormat) ? dateFormat.join(', ') : dateFormat }));
+                    errors.push(customErrors.invalid || errorMessage);
                 }
             }
 
